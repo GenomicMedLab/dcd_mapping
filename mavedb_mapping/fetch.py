@@ -98,7 +98,11 @@ def _get_scores_csv(scoreset_urn: str) -> Optional[Path]:
     if not outfile_path.exists():
         url = f"https://api.mavedb.org/api/v1/score-sets/{scoreset_urn}/scores"
         with requests.get(url, stream=True) as r:
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except requests.exceptions.HTTPError:
+                _logger.error(f"HTTP error when fetching scores from {url}")
+                return None
             with open(outfile_path, "wb") as h:
                 for chunk in r.iter_content(chunk_size=8192):
                     if chunk:
@@ -112,6 +116,7 @@ def get_scores_data(scoreset_urn: str) -> List[ScoreRow]:
     :param scoreset_urn: URN for scoreset
     :return: Array of individual ScoreRow objects, containing information like protein
         changes and scores
+    :raise: Exception if data fetch fails
     """
     scores_csv = _get_scores_csv(scoreset_urn)
     if not scores_csv:
