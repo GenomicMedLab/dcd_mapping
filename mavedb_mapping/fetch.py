@@ -57,6 +57,10 @@ def get_all_human_scoreset_urns() -> List[str]:
 def get_scoreset_metadata(scoreset_urn: str) -> Optional[ScoresetMetadata]:
     """Acquire metadata for scoreset.
 
+    Runs an HTTP request every time. Ideally, we should allow the option to cache this,
+    for users who want to work from a stable trove of data (e.g. for reproducibility) or
+    to lessen pressure on the MaveDB API.
+
     :param scoreset_urn: URN for scoreset
     :return: Object containing salient metadata
     """
