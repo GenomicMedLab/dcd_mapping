@@ -4,8 +4,8 @@ description = "Map MaveDB scoresets to reference sequences"
 authors = [
     {name = "Alex Handler Wagner", email = "Alex.Wagner@nationwidechildrens.org"},
     {name = "Jeremy Arbesfeld", email = "todo@todo.com"},
+    {name = "Samriddhi TODO", email = "todo@todo.com"},
     {name = "James Stevenson", email = "James.Stevenson@nationwidechildrens.org"},
-    {name = "Samriddhi TODO", email = "todo@todo.com"}
 ]
 readme = "README.md"
 version = "0.0.1"
@@ -20,7 +20,14 @@ classifiers = [
     'Programming Language :: Python :: 3.11',
 ]
 requires-python = ">=3.8"
-dependencies = ["requests", "pydantic", "biopython", "tqdm"]
+dependencies = [
+    "requests",
+    "pydantic",
+    "biopython",
+    "tqdm",
+    "click",
+    "cool-seq-tool==0.2.0-dev0"  # temporary pin
+]
 
 [build-system]
 requires = ["setuptools"]
@@ -29,8 +36,13 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["mavedb_mapping"]
 
+[project.scripts]
+dcd-map = "mavedb_mapping.cli:cli"
+
 [project.optional-dependencies]
-test = []
+test = [
+    "pytest"
+]
 dev = [
     "ruff",
     "black",
