@@ -142,7 +142,7 @@ def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
             target_reference_genome=metadata["targetGene"]["referenceMaps"][0][
                 "genome"
             ]["shortName"],
-            target_uniprot_id=_get_uniprot_ref(metadata),
+            target_uniprot_ref=_get_uniprot_ref(metadata),
         )
     except (KeyError, ValidationError) as e:
         _logger.error(

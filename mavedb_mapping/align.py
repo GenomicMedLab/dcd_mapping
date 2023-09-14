@@ -10,9 +10,10 @@ from Bio.SearchIO._model import QueryResult
 from mavedb_mapping.resources import get_mapping_tmp_dir, get_ref_genome_file
 from mavedb_mapping.schemas import (
     AlignmentResult,
-    HitRange,
-    QueryRange,
     ScoresetMetadata,
+    # HitRange,
+    # QueryRange,
+    SequenceRange,
     TargetSequenceType,
 )
 
@@ -122,10 +123,10 @@ def _get_best_match(output: QueryResult) -> AlignmentResult:
 
     for hsp_fragment in hsp:
         query_subranges.append(
-            QueryRange(start=hsp_fragment.query_start, end=hsp_fragment.query_end)
+            SequenceRange(start=hsp_fragment.query_start, end=hsp_fragment.query_end)
         )
         hit_subranges.append(
-            HitRange(start=hsp_fragment.hit_start, end=hsp_fragment.hit_end)
+            SequenceRange(start=hsp_fragment.hit_start, end=hsp_fragment.hit_end)
         )
 
     result = AlignmentResult(
@@ -133,9 +134,9 @@ def _get_best_match(output: QueryResult) -> AlignmentResult:
         strand=strand,
         ident_pct=ident_pct,
         coverage=coverage,
-        query_range=QueryRange(start=hsp.query_start, end=hsp.query_end),
+        query_range=SequenceRange(start=hsp.query_start, end=hsp.query_end),
         query_subranges=query_subranges,
-        hit_range=HitRange(start=hsp.hit_start, end=hsp.hit_end),
+        hit_range=SequenceRange(start=hsp.hit_start, end=hsp.hit_end),
         hit_subranges=hit_subranges,
     )
     return result
