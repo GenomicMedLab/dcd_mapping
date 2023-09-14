@@ -3,6 +3,8 @@
 This module is responsible for handling requests for MaveDB data, such as scoresets
 or scoreset metadata. It should also instantiate any external resources needed for
 tasks like transcript selection.
+
+Much of this can/should be replaced by the ``mavedb-api`` library.
 """
 import csv
 import logging
@@ -15,8 +17,8 @@ import requests
 from pydantic import ValidationError
 from tqdm import tqdm
 
-from mavedb_mapping.cache import LOCAL_STORE_PATH
-from mavedb_mapping.schemas import ScoreRow, ScoresetMetadata, UniProtRef
+from mavemap.cache import LOCAL_STORE_PATH
+from mavemap.schemas import ScoreRow, ScoresetMetadata, UniProtRef
 
 _logger = logging.getLogger(__name__)
 
@@ -111,7 +113,8 @@ def _get_uniprot_ref(scoreset_json: Dict[str, Any]) -> Optional[UniProtRef]:
     for ext_id in ext_ids:
         if ext_id.get("identifier", {}).get("dbName") == "UniProt":
             return UniProtRef(
-                id=ext_id["identifier"]["identifier"], offset=ext_id["offset"]
+                id=f"uniprot:{ext_id['identifier']['identifier']}",
+                offset=ext_id["offset"],
             )
 
 

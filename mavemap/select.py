@@ -4,7 +4,7 @@ from cool_seq_tool import CoolSeqTool
 from cool_seq_tool.data_sources.seqrepo_access import SeqRepoAccess
 from gene.query import QueryHandler
 
-from mavedb_mapping.schemas import AlignmentResult, ScoresetMetadata, TargetSequenceType
+from mavemap.schemas import AlignmentResult, ScoresetMetadata, TargetSequenceType
 
 
 def _get_chromosome_identifier(sr: SeqRepoAccess, chromosome: str) -> str:

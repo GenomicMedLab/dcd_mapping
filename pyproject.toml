@@ -1,5 +1,5 @@
 [project]
-name = "mavedb-mapping"
+name = "mavemap"
 description = "Map MaveDB scoresets to reference sequences"
 authors = [
     {name = "Alex Handler Wagner", email = "Alex.Wagner@nationwidechildrens.org"},
@@ -33,10 +33,10 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["mavedb_mapping"]
+packages = ["mavemap"]
 
 [project.scripts]
-dcd-map = "mavedb_mapping.cli:cli"
+dcd-map = "mavemap.cli:cli"
 
 [project.optional-dependencies]
 test = [

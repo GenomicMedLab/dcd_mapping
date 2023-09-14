@@ -1,5 +1,5 @@
 """Provide core MaveDB mapping methods."""
-from mavedb_mapping.select import select_reference
+from mavemap.select import select_reference
 
 from .align import align
 from .resources import get_scoreset_metadata, get_scoreset_records
