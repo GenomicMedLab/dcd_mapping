@@ -1,10 +1,6 @@
 """Select best reference sequence."""
 from typing import List
 
-from cool_seq_tool import CoolSeqTool
-from cool_seq_tool.data_sources.seqrepo_access import SeqRepoAccess
-from gene.query import QueryHandler
-
 from mavemap.lookup import get_chromosome_identifier, get_gene_symbol, get_transcripts
 from mavemap.schemas import AlignmentResult, ScoresetMetadata, TargetSequenceType
 
@@ -39,7 +35,7 @@ def _select_protein_reference(
     :param align_result: alignment results
     :return: TODO
     """
-    transcripts = _get_matching_transcripts(metadata, align_result)
+    _get_matching_transcripts(metadata, align_result)
 
 
 def select_reference(metadata: ScoresetMetadata, align_result: AlignmentResult) -> None:
