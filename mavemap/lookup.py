@@ -40,11 +40,11 @@ def get_uniprot_sequence(uniprot_id: str) -> Optional[str]:
     return json[0]["sequence"]["sequence"]
 
 
-class CoolSeqToolFactory:
+class CoolSeqToolBuilder:
     """Singleton constructor for ``cool-seq-tool`` instance."""
 
     def __new__(cls) -> CoolSeqTool:
-        """Define construction of new instance."""
+        """Provide ``CoolSeqTool`` instance. Construct it if unavailable."""
         if not hasattr(cls, "instance"):
             cls.instance = CoolSeqTool()
         return cls.instance
@@ -56,7 +56,7 @@ def get_protein_accession(transcript: str) -> Optional[str]:
     :param transcript: transcript accession, e.g. ``"NM_002529.3"``
     :return: protein accession if successful
     """
-    uta = CoolSeqToolFactory().uta_db
+    uta = CoolSeqToolBuilder().uta_db
     query = f"""
     SELECT pro_ac FROM {uta.schema}.associated_accessions
     WHERE tx_ac = '{transcript}'
@@ -80,7 +80,7 @@ def get_transcripts(
     :param end: ending position
     :return: TODO idk
     """
-    uta = CoolSeqToolFactory().uta_db
+    uta = CoolSeqToolBuilder().uta_db
     query = f"""
     SELECT tx_ac
     FROM {uta.schema}.tx_exon_aln_v
@@ -99,7 +99,7 @@ def _get_hgnc_symbol(term: str) -> Optional[str]:
     :param term: gene referent
     :return: gene symbol if available
     """
-    q = CoolSeqToolFactory().gene_query_handler
+    q = CoolSeqToolBuilder().gene_query_handler
     result = q.normalize_unmerged(term)
     if "HGNC" in result.source_matches:
         hgnc = result.source_matches["HGNC"]  # type: ignore
@@ -137,7 +137,7 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
     :param transcripts: candidate transcripts
     :return: complete MANE descriptions
     """
-    mane = CoolSeqToolFactory().mane_transcript_mappings
+    mane = CoolSeqToolBuilder().mane_transcript_mappings
     mane_transcripts = mane.get_mane_from_transcripts(transcripts)
     return [ManeData(*list(r.values())) for r in mane_transcripts]
 
@@ -148,7 +148,7 @@ def get_chromosome_identifier(chromosome: str) -> str:
     :param chromosome: prefix-free chromosome name, e.g. ``"8"``, ``"X"``
     :raise KeyError: if unable to retrieve identifier
     """
-    sr = CoolSeqToolFactory().seqrepo_access
+    sr = CoolSeqToolBuilder().seqrepo_access
     result, _ = sr.chromosome_to_acs(chromosome)
     if not result:
         raise KeyError
