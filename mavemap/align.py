@@ -6,12 +6,11 @@ from typing import Optional
 
 from Bio.SearchIO import read as read_blat
 from Bio.SearchIO._model import QueryResult
-from mavedb_mapping.resources import get_mapping_tmp_dir, get_ref_genome_file
-from mavedb_mapping.schemas import (
+
+from mavemap.resources import get_mapping_tmp_dir, get_ref_genome_file
+from mavemap.schemas import (
     AlignmentResult,
     ScoresetMetadata,
-    # HitRange,
-    # QueryRange,
     SequenceRange,
     TargetSequenceType,
 )
