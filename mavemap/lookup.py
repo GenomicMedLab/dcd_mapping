@@ -1,6 +1,6 @@
 """Handle API lookups to external (non-MaveDB) services.
 
-This module should contain methods that we don't think are safely cache-able.
+This module should contain methods that we don't want to think about caching.
 """
 import asyncio
 from typing import List, Optional
@@ -8,24 +8,36 @@ from typing import List, Optional
 import requests
 from cool_seq_tool import CoolSeqTool
 
-from mavemap.schemas import AlignmentResult, ScoresetMetadata
+from mavemap.schemas import ManeData, ScoresetMetadata
 
 
 def get_clingen_id(hgvs: str) -> Optional[str]:
-    """Fetch ClinGen ID.
+    """Fetch ClinGen ID. TODO finish this.
 
     :param hgvs: HGVS ID todo ??
     :return: ClinGen ID if available
     :raise HTTPError: if request encounters an error
     """
-    response = requests.get(f"https://reg.genome.network/allele?hgvs={hgvs}")
-    try:
-        response.raise_for_status()
-    except requests.HTTPError:
-        return None
+    url = f"https://reg.genome.network/allele?hgvs={hgvs}"
+    response = requests.get(url)
+    response.raise_for_status()
     page = response.json()
     page = page["@id"]
     return page.split("/")[4]
+
+
+def get_uniprot_sequence(uniprot_id: str) -> Optional[str]:
+    """Get sequence directly from UniProt.
+
+    :param uniprot_id: ID provided with target info
+    :return: transcript accession if successful
+    :raise HTTPError: if response comes with an HTTP error code
+    """
+    url = f"https://www.ebi.ac.uk/proteins/api/proteins?accession={uniprot_id.split(':')[1]}&format=json"
+    response = requests.get(url)
+    response.raise_for_status()
+    json = response.json()
+    return json[0]["sequence"]["sequence"]
 
 
 class CoolSeqToolFactory:
@@ -38,12 +50,27 @@ class CoolSeqToolFactory:
         return cls.instance
 
 
-def _get_transcripts(
+def get_protein_accession(transcript: str) -> Optional[str]:
+    """Retrieve protein accession for a transcript.
+
+    :param transcript: transcript accession, e.g. ``"NM_002529.3"``
+    :return: protein accession if successful
+    """
+    uta = CoolSeqToolFactory().uta_db
+    query = f"""
+    SELECT pro_ac FROM {uta.schema}.associated_accessions
+    WHERE tx_ac = '{transcript}'
+    """
+    result = asyncio.run(uta.execute_query(query))
+    if result:
+        return result[0]["pro_ac"]
+
+
+def get_transcripts(
     gene_symbol: str, chromosome: str, start: int, end: int
 ) -> List[str]:
     """Get transcript accessions matching given parameters.
 
-    TODO: need to set UTA schema as env var.
     TODO: may be able to successfully query with only one of gene symbol/chromosome ac.
 
     :param gene_symbol: HGNC-given gene symbol (usually, but not always, equivalent to
@@ -84,6 +111,11 @@ def _get_hgnc_symbol(term: str) -> Optional[str]:
 def get_gene_symbol(metadata: ScoresetMetadata) -> Optional[str]:
     """Acquire HGNC gene symbol given provided metadata from scoreset.
 
+    Right now, we use two sources for normalizing:
+    1. UniProt ID, if available
+    2. Target name: specifically, we try the first word in the name (this could
+    cause some problems and we should double-check it)
+
     :param ScoresetMetadata: data given by MaveDB API
     :return: gene symbol if available
     """
@@ -98,21 +130,28 @@ def get_gene_symbol(metadata: ScoresetMetadata) -> Optional[str]:
         return _get_hgnc_symbol(parsed_name)
 
 
-class TxSelectError(Exception):
-    """Raise for transcript selection failure."""
+def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
+    """Get corresponding MANE data for transcripts.
 
 
-def get_matching_transcripts(
-    metadata: ScoresetMetadata, align_result: AlignmentResult
-) -> List[List[str]]:
-    """TODO"""
-    gene_symbol = get_gene_symbol(metadata)
-    if not gene_symbol:
-        raise TxSelectError
-    transcript_matches = []
-    for hit_range in align_result.hit_subranges:
-        matches_list = _get_transcripts(
-            gene_symbol, align_result.chrom, hit_range.start, hit_range.end
-        )
-        transcript_matches.append(matches_list)
-    return transcript_matches
+    :param transcripts: candidate transcripts
+    :return: complete MANE descriptions
+    """
+    mane = CoolSeqToolFactory().mane_transcript_mappings
+    mane_transcripts = mane.get_mane_from_transcripts(transcripts)
+    return [ManeData(*list(r.values())) for r in mane_transcripts]
+
+
+def get_chromosome_identifier(chromosome: str) -> str:
+    """Get latest NC_ identifier given a chromosome name.
+
+    :param chromosome: prefix-free chromosome name, e.g. ``"8"``, ``"X"``
+    :raise KeyError: if unable to retrieve identifier
+    """
+    sr = CoolSeqToolFactory().seqrepo_access
+    result, _ = sr.chromosome_to_acs(chromosome)
+    if not result:
+        raise KeyError
+
+    sorted_results = sorted(result)
+    return sorted_results[-1]

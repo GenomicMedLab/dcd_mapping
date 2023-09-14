@@ -1,32 +1,33 @@
 """Select best reference sequence."""
+from typing import List
 
 from cool_seq_tool import CoolSeqTool
 from cool_seq_tool.data_sources.seqrepo_access import SeqRepoAccess
 from gene.query import QueryHandler
 
+from mavemap.lookup import get_chromosome_identifier, get_gene_symbol, get_transcripts
 from mavemap.schemas import AlignmentResult, ScoresetMetadata, TargetSequenceType
 
 
-def _get_chromosome_identifier(sr: SeqRepoAccess, chromosome: str) -> str:
-    """Get latest NC_ identifier given a chromosome name.
-
-    :param sr: SeqRepo interface
-    :param chromosome: prefix-free chromosome name, e.g. ``"8"``, ``"X"``
-    """
-    result, _ = sr.chromosome_to_acs(chromosome)
-    if not result:
-        raise KeyError
-
-    sorted_results = sorted(result)
-    return sorted_results[-1]
+class TxSelectError(Exception):
+    """Raise for transcript selection failure."""
 
 
-def _get_gene_symbol(q: QueryHandler, metadata: ScoresetMetadata) -> str:
+def _get_matching_transcripts(
+    metadata: ScoresetMetadata, align_result: AlignmentResult
+) -> List[List[str]]:
     """TODO"""
-    if metadata.target_uniprot_id:
-        uniprot_uri = f"uniprot:{metadata.target_uniprot_id.id}"
-        result = q.normalize()
-    return uniprot_uri, result
+    chromosome = get_chromosome_identifier(align_result.chrom)
+    gene_symbol = get_gene_symbol(metadata)
+    if not gene_symbol:
+        raise TxSelectError
+    transcript_matches = []
+    for hit_range in align_result.hit_subranges:
+        matches_list = get_transcripts(
+            gene_symbol, chromosome, hit_range.start, hit_range.end
+        )
+        transcript_matches.append(matches_list)
+    return transcript_matches
 
 
 def _select_protein_reference(
@@ -38,18 +39,7 @@ def _select_protein_reference(
     :param align_result: alignment results
     :return: TODO
     """
-    cst = CoolSeqTool()
-    _ = _get_chromosome_identifier(cst.seqrepo_access, align_result.chrom)
-    _ = _get_gene_symbol(cst.gene_query_handler, metadata)
-
-    """
-        select *
-            from uta_20210129.tx_exon_aln_v
-            where hgnc = '{gsymb}'
-            and {locs[i][0]} between alt_start_i and alt_end_i
-            or {locs[i][1]} between alt_start_i and alt_end_i
-            and alt_ac = '{chrom}'
-    """
+    transcripts = _get_matching_transcripts(metadata, align_result)
 
 
 def select_reference(metadata: ScoresetMetadata, align_result: AlignmentResult) -> None:

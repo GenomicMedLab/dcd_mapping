@@ -44,3 +44,23 @@ AlignmentResult = namedtuple(
         "hit_subranges",
     ],
 )
+
+ManeData = namedtuple(
+    "ManeData",
+    [
+        "ncbi_gene_id",
+        "ensembl_gene_id",
+        "hgnc_gene_id",
+        "symbol",
+        "name",
+        "refseq_nuc",
+        "refseq_prot",
+        "ensembl_nuc",
+        "ensembl_prot",
+        "mane_status",
+        "grch38_chr",
+        "chr_start",
+        "chr_end",
+        "chr_strand"
+    ]
+)
