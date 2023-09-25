@@ -25,7 +25,9 @@ dependencies = [
     "biopython",
     "tqdm",
     "click",
-    "cool-seq-tool==0.1.14-dev1"  # temporary pin
+    "cool-seq-tool==0.1.14-dev1",  # temporary pin
+    "gene-normalizer==0.1.40-dev0",  # temporary pin
+    "mavetools",
 ]
 
 [build-system]
@@ -40,7 +42,8 @@ dcd-map = "mavemap.cli:cli"
 
 [project.optional-dependencies]
 test = [
-    "pytest"
+    "pytest",
+    "pytest-mock"
 ]
 dev = [
     "ruff",

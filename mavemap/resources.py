@@ -4,7 +4,7 @@ This module is responsible for handling requests for MaveDB data, such as scores
 or scoreset metadata. It should also instantiate any external resources needed for
 tasks like transcript selection.
 
-Much of this can/should be replaced by the ``mavedb-api`` library.
+Much of this can/should be replaced by the ``mavetools`` library.
 """
 import csv
 import logging
