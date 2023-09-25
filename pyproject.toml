@@ -25,7 +25,7 @@ dependencies = [
     "biopython",
     "tqdm",
     "click",
-    "cool-seq-tool==0.2.0-dev0"  # temporary pin
+    "cool-seq-tool==0.1.14-dev1"  # temporary pin
 ]
 
 [build-system]
