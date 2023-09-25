@@ -44,7 +44,10 @@ class CoolSeqToolBuilder:
     """Singleton constructor for ``cool-seq-tool`` instance."""
 
     def __new__(cls) -> CoolSeqTool:
-        """Provide ``CoolSeqTool`` instance. Construct it if unavailable."""
+        """Provide ``CoolSeqTool`` instance. Construct it if unavailable.
+
+        :return: singleton instance of CoolSeqTool
+        """
         if not hasattr(cls, "instance"):
             cls.instance = CoolSeqTool()
         return cls.instance
@@ -78,7 +81,7 @@ def get_transcripts(
     :param chromosome: chromosome accession (e.g. ``"NC_000007.13"``)
     :param start: starting position
     :param end: ending position
-    :return: TODO idk
+    :return: candidate transcript accessions
     """
     uta = CoolSeqToolBuilder().uta_db
     query = f"""
