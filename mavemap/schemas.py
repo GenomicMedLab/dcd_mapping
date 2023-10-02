@@ -1,6 +1,8 @@
 """Provide class definitions for commonly-used information objects."""
-from collections import namedtuple
 from enum import Enum
+from typing import Optional, List
+
+from pydantic import BaseModel
 
 
 class TargetGeneCategory(str, Enum):
@@ -16,51 +18,75 @@ class TargetSequenceType(str, Enum):
     DNA = "dna"
 
 
-UniProtRef = namedtuple("UniProtRef", ["id", "offset"])
-ScoresetMetadata = namedtuple(
-    "ScoresetMetadata",
-    [
-        "urn",
-        "target_gene_name",
-        "target_gene_category",
-        "target_sequence",
-        "target_sequence_type",
-        "target_reference_genome",
-        "target_uniprot_ref",
-    ],
-)
-ScoreRow = namedtuple("ScoreRow", ["hgvs_pro", "hgvs_nt", "score", "accession"])
-SequenceRange = namedtuple("SequenceRange", ["start", "end"])
-AlignmentResult = namedtuple(
-    "AlignmentResult",
-    [
-        "chrom",
-        "strand",
-        "coverage",
-        "ident_pct",
-        "query_range",
-        "query_subranges",
-        "hit_range",
-        "hit_subranges",
-    ],
-)
+class ReferenceGenome(str, Enum):
+    """Define known reference genome names."""
 
-ManeData = namedtuple(
-    "ManeData",
-    [
-        "ncbi_gene_id",
-        "ensembl_gene_id",
-        "hgnc_gene_id",
-        "symbol",
-        "name",
-        "refseq_nuc",
-        "refseq_prot",
-        "ensembl_nuc",
-        "ensembl_prot",
-        "mane_status",
-        "grch38_chr",
-        "chr_start",
-        "chr_end",
-        "chr_strand"
-    ]
-)
+
+
+class UniProtRef(BaseModel):
+    """Store metadata associated with MaveDB UniProt reference"""
+
+    id: str
+    offset: int
+
+
+
+class ScoresetMetadata(BaseModel):
+    """Store all relevant metadata from metadata reported for scoreset by MaveDB"""
+
+    urn: str
+    target_gene_name: Optional[str] = None
+    target_gene_category: Optional[str] = None
+    target_sequence: str
+    target_sequence_type: TargetSequenceType
+    target_reference_genome: Optional[ReferenceGenome] = None
+    target_uniprot_ref: Optional[UniProtRef] = None
+
+
+class ScoreRow(BaseModel):
+    """TODO"""
+
+    hgvs_pro: Optional[str] = None
+    hgvs_nt: Optional[str] = None
+    # TODO ???
+    score: str
+    accession: str
+
+
+class SequenceRange(BaseModel):
+    """Define range over a sequence. Useful for expressing alignment query and hit results."""
+
+    start: int
+    end: int
+
+
+class AlignmentResult(BaseModel):
+    """Structured BLAT alignment output."""
+
+    chrom: str
+    strand: str
+    coverage: float
+    ident_pct: float
+    query_range: SequenceRange
+    query_subranges: List[SequenceRange]
+    hit_range: SequenceRange
+    hit_subranges: List[SequenceRange]
+
+
+class ManeData(BaseModel):
+    """Structured MANE data retrieval result."""
+
+    ncbi_gene_id: str
+    ensembl_gene_id: str
+    hgnc_gene_id: str
+    symbol: str
+    name: str
+    refseq_nuc: str
+    refseq_prot: str
+    ensembl_nuc: str
+    ensembl_prot: str
+    mane_status: str
+    grch38_chr: str
+    chr_start: str
+    chr_end: str
+    chr_strand: str

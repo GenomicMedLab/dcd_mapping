@@ -28,6 +28,8 @@ dependencies = [
     "cool-seq-tool==0.1.14-dev1",  # temporary pin
     "gene-normalizer==0.1.40-dev0",  # temporary pin
     "mavetools",
+    "pydantic",
+    "fastapi",
 ]
 
 [build-system]
