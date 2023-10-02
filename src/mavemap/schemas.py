@@ -21,6 +21,7 @@ class TargetSequenceType(str, Enum):
 class ReferenceGenome(str, Enum):
     """Define known reference genome names."""
 
+    HG38 = "hg38"
 
 
 class UniProtRef(BaseModel):
@@ -35,20 +36,19 @@ class ScoresetMetadata(BaseModel):
     """Store all relevant metadata from metadata reported for scoreset by MaveDB"""
 
     urn: str
-    target_gene_name: Optional[str] = None
-    target_gene_category: Optional[str] = None
+    target_gene_name: str
+    target_gene_category: str
     target_sequence: str
     target_sequence_type: TargetSequenceType
-    target_reference_genome: Optional[ReferenceGenome] = None
+    target_reference_genome: ReferenceGenome
     target_uniprot_ref: Optional[UniProtRef] = None
 
 
 class ScoreRow(BaseModel):
     """TODO"""
 
-    hgvs_pro: Optional[str] = None
-    hgvs_nt: Optional[str] = None
-    # TODO ???
+    hgvs_pro: str
+    hgvs_nt: str
     score: str
     accession: str
 
