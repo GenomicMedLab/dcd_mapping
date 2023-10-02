@@ -4,11 +4,15 @@ This module should contain methods that we don't want to think about caching.
 """
 import asyncio
 from typing import List, Optional
+from ga4gh.vrsatile.pydantic.vrsatile_models import Extension, GeneDescriptor
+from gene.database import create_db
+from gene.query import QueryHandler
+from gene.schemas import NormalizeService
 
 import requests
 from cool_seq_tool import CoolSeqTool
 
-from mavemap.schemas import ManeData, ScoresetMetadata
+from mavemap.schemas import GeneLocation, ManeData, ScoresetMetadata
 
 
 def get_clingen_id(hgvs: str) -> Optional[str]:
@@ -49,7 +53,8 @@ class CoolSeqToolBuilder:
         :return: singleton instance of CoolSeqTool
         """
         if not hasattr(cls, "instance"):
-            cls.instance = CoolSeqTool()
+            q = QueryHandler(create_db())
+            cls.instance = CoolSeqTool(gene_query_handler=q)
         return cls.instance
 
 
@@ -132,10 +137,109 @@ def get_gene_symbol(metadata: ScoresetMetadata) -> Optional[str]:
         parsed_name = metadata.target_gene_name.split(" ")[0]
         return _get_hgnc_symbol(parsed_name)
 
+def _normalize_gene(term: str) -> Optional[GeneDescriptor]:
+    """Fetch normalizer response for gene term.
+
+    :param term: gene name or referent to normalize
+    :return: GeneDescriptor if successful
+    """
+    q = CoolSeqToolBuilder().gene_query_handler
+    response = q.normalize(term)
+    if response.match_type > 0:
+        return response.gene_descriptor
+    else:
+        return None
+
+
+def _get_normalized_gene_response(metadata: ScoresetMetadata) -> Optional[GeneDescriptor]:
+    """Fetch best normalized concept given available scoreset metadata.
+
+    :param metadata: salient scoreset metadata items
+    :return: Normalized gene descriptor if available
+    """
+    if metadata.target_uniprot_ref:
+        gene_descriptor = _normalize_gene(metadata.target_uniprot_ref.id)
+        if gene_descriptor:
+            return gene_descriptor
+
+    # try taking the first word in the target name
+    if metadata.target_gene_name:
+        parsed_name = metadata.target_gene_name.split(" ")[0]
+        gene_descriptor = _normalize_gene(parsed_name)
+        if gene_descriptor:
+            return gene_descriptor
+
+    return None
+
+
+def _deref_vrs_sequence_id(sequence_id: str) -> Optional[str]:
+    """Get NC_ identifier given a VRS sequence ID.
+
+    :param sequence_id: identifier a la ``ga4gh:SQ.XXXXXX``
+    :return: NC_ chromosome ID
+    :raise KeyError: if unable to retrieve identifier
+    """
+    sr = CoolSeqToolBuilder().seqrepo_access
+    result, _ = sr.translate_identifier(sequence_id)
+    if not result:
+        raise KeyError
+
+    nc_ids = [r for r in result if r.startswith("refseq:NC_")]
+    if not nc_ids:
+        raise KeyError
+
+    return nc_ids[0].split("refseq:")[-1]
+
+
+def _get_genomic_interval(extensions: List[Extension], src_name: str) -> Optional[GeneLocation]:
+    """Extract start/end coords from extension list. Extensions in gene descriptors
+    can be of many different types, but we only want SequenceLocation data.
+
+    :param extensions: extensions given in a descriptor
+    :return: genomic interval if available
+    """
+    locations = [ext for ext in extensions if f"{src_name}_locations" in ext.name]
+    if locations and len(locations[0].value) > 0:
+        location_values = [v for v in locations[0].value if v.type == "SequenceLocation"]
+        if location_values:
+            return GeneLocation(
+                start=location_values[0].interval.start.value,
+                end=location_values[0].interval.end.value,
+                chromosome=_deref_vrs_sequence_id(location_values[0].sequence_id)
+            )
+    return None
+
+
+def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
+    """Acquire gene location data from gene normalizer using metadata provided by
+    scoreset.
+
+    As with ``get_gene_symbol()``, we try to normalize from the following:
+    1. UniProt ID, if available
+    2. Target name: specifically, we try the first word in the name (this could
+    cause some problems and we should double-check it)
+
+    :param metadata: data given by MaveDB API
+    :return: gene location data if available
+    """
+    gene_descriptor = _get_normalized_gene_response(metadata)
+    if not gene_descriptor or not gene_descriptor.extensions:
+        return None
+
+    hgnc_locations = [loc for loc in gene_descriptor.extensions if loc.name == "hgnc_locations"]
+    if hgnc_locations and len(hgnc_locations[0].value) > 0:
+        return GeneLocation(chromosome=hgnc_locations[0].value[0].chr)
+
+    for src_name in ("ensembl", "ncbi"):
+        loc = _get_genomic_interval(gene_descriptor.extensions, src_name)
+        if loc:
+            return loc
+
+    return None
+
 
 def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
     """Get corresponding MANE data for transcripts.
-
 
     :param transcripts: candidate transcripts
     :return: complete MANE descriptions
@@ -149,6 +253,7 @@ def get_chromosome_identifier(chromosome: str) -> str:
     """Get latest NC_ identifier given a chromosome name.
 
     :param chromosome: prefix-free chromosome name, e.g. ``"8"``, ``"X"``
+    :return: latest ID if available
     :raise KeyError: if unable to retrieve identifier
     """
     sr = CoolSeqToolBuilder().seqrepo_access
@@ -158,3 +263,5 @@ def get_chromosome_identifier(chromosome: str) -> str:
 
     sorted_results = sorted(result)
     return sorted_results[-1]
+
+

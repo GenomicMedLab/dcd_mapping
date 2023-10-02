@@ -31,7 +31,6 @@ class UniProtRef(BaseModel):
     offset: int
 
 
-
 class ScoresetMetadata(BaseModel):
     """Store all relevant metadata from metadata reported for scoreset by MaveDB"""
 
@@ -58,6 +57,14 @@ class SequenceRange(BaseModel):
 
     start: int
     end: int
+
+
+class GeneLocation(BaseModel):
+    """Gene location info, gathered from normalizer result. Likely to be incomplete."""
+
+    chromosome: Optional[str] = None
+    start: Optional[int] = None
+    end: Optional[int] = None
 
 
 class AlignmentResult(BaseModel):

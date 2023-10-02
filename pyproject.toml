@@ -36,6 +36,7 @@ dependencies = [
     "mavetools",
     "pydantic",
     "fastapi",
+    "python-dotenv",
 ]
 
 [project.scripts]
@@ -62,9 +63,6 @@ Source = "https://github.com/ave-dcd/dcd_mapping"
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["mavemap"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-report term-missing"
