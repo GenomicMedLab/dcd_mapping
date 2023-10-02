@@ -11,13 +11,19 @@ readme = "README.md"
 version = "0.0.1"
 license = { file = "LICENSE" }
 classifiers = [
-    'Programming Language :: Python',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
-    'Programming Language :: Python :: 3.11',
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "Framework :: Pydantic",
+    "Framework :: Pydantic :: 1",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 requires-python = ">=3.8"
 dependencies = [
@@ -32,20 +38,14 @@ dependencies = [
     "fastapi",
 ]
 
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["mavemap"]
-
 [project.scripts]
 dcd-map = "mavemap.cli:cli"
 
 [project.optional-dependencies]
 test = [
     "pytest",
-    "pytest-mock"
+    "pytest-mock",
+    "pytest-cov"
 ]
 dev = [
     "ruff",
@@ -54,13 +54,28 @@ dev = [
 ]
 
 [project.urls]
-Homepage = 'https://www.varianteffect.org/'
-Documentation = 'https://github.com/ave-dcd/dcd_mapping/README.md'
-Source = 'https://github.com/ave-dcd/dcd_mapping'
+Homepage = "https://www.varianteffect.org/"
+Documentation = "https://github.com/ave-dcd/dcd_mapping/README.md"
+Source = "https://github.com/ave-dcd/dcd_mapping"
+
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mavemap"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-report term-missing"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
 
 [tool.black]
 line-length = 88
-extend-exclude = "^/docs/source/conf.py"
+extend-exclude = "^/docs/source/conf.py"  # TODO pending docs
 
 [tool.ruff]
 # pycodestyle (E, W)
