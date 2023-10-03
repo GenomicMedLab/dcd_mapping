@@ -4,13 +4,12 @@ This module should contain methods that we don't want to think about caching.
 """
 import asyncio
 from typing import List, Optional
-from ga4gh.vrsatile.pydantic.vrsatile_models import Extension, GeneDescriptor
-from gene.database import create_db
-from gene.query import QueryHandler
-from gene.schemas import NormalizeService
 
 import requests
 from cool_seq_tool import CoolSeqTool
+from ga4gh.vrsatile.pydantic.vrsatile_models import Extension, GeneDescriptor
+from gene.database import create_db
+from gene.query import QueryHandler
 
 from mavemap.schemas import GeneLocation, ManeData, ScoresetMetadata
 
@@ -137,6 +136,7 @@ def get_gene_symbol(metadata: ScoresetMetadata) -> Optional[str]:
         parsed_name = metadata.target_gene_name.split(" ")[0]
         return _get_hgnc_symbol(parsed_name)
 
+
 def _normalize_gene(term: str) -> Optional[GeneDescriptor]:
     """Fetch normalizer response for gene term.
 
@@ -151,7 +151,9 @@ def _normalize_gene(term: str) -> Optional[GeneDescriptor]:
         return None
 
 
-def _get_normalized_gene_response(metadata: ScoresetMetadata) -> Optional[GeneDescriptor]:
+def _get_normalized_gene_response(
+    metadata: ScoresetMetadata,
+) -> Optional[GeneDescriptor]:
     """Fetch best normalized concept given available scoreset metadata.
 
     :param metadata: salient scoreset metadata items
@@ -172,26 +174,9 @@ def _get_normalized_gene_response(metadata: ScoresetMetadata) -> Optional[GeneDe
     return None
 
 
-def _deref_vrs_sequence_id(sequence_id: str) -> Optional[str]:
-    """Get NC_ identifier given a VRS sequence ID.
-
-    :param sequence_id: identifier a la ``ga4gh:SQ.XXXXXX``
-    :return: NC_ chromosome ID
-    :raise KeyError: if unable to retrieve identifier
-    """
-    sr = CoolSeqToolBuilder().seqrepo_access
-    result, _ = sr.translate_identifier(sequence_id)
-    if not result:
-        raise KeyError
-
-    nc_ids = [r for r in result if r.startswith("refseq:NC_")]
-    if not nc_ids:
-        raise KeyError
-
-    return nc_ids[0].split("refseq:")[-1]
-
-
-def _get_genomic_interval(extensions: List[Extension], src_name: str) -> Optional[GeneLocation]:
+def _get_genomic_interval(
+    extensions: List[Extension], src_name: str
+) -> Optional[GeneLocation]:
     """Extract start/end coords from extension list. Extensions in gene descriptors
     can be of many different types, but we only want SequenceLocation data.
 
@@ -200,12 +185,16 @@ def _get_genomic_interval(extensions: List[Extension], src_name: str) -> Optiona
     """
     locations = [ext for ext in extensions if f"{src_name}_locations" in ext.name]
     if locations and len(locations[0].value) > 0:
-        location_values = [v for v in locations[0].value if v.type == "SequenceLocation"]
+        location_values = [
+            v for v in locations[0].value if v.type == "SequenceLocation"
+        ]
         if location_values:
             return GeneLocation(
                 start=location_values[0].interval.start.value,
                 end=location_values[0].interval.end.value,
-                chromosome=_deref_vrs_sequence_id(location_values[0].sequence_id)
+                chromosome=get_chromosome_identifier_from_vrs_id(
+                    location_values[0].sequence_id
+                ),
             )
     return None
 
@@ -219,6 +208,11 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
     2. Target name: specifically, we try the first word in the name (this could
     cause some problems and we should double-check it)
 
+    TODO:
+    ----
+    * Fairly certain that we should be breaking this out into multiple functions to
+      disaggregate chrom vs location fetching
+
     :param metadata: data given by MaveDB API
     :return: gene location data if available
     """
@@ -226,7 +220,9 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
     if not gene_descriptor or not gene_descriptor.extensions:
         return None
 
-    hgnc_locations = [loc for loc in gene_descriptor.extensions if loc.name == "hgnc_locations"]
+    hgnc_locations = [
+        loc for loc in gene_descriptor.extensions if loc.name == "hgnc_locations"
+    ]
     if hgnc_locations and len(hgnc_locations[0].value) > 0:
         return GeneLocation(chromosome=hgnc_locations[0].value[0].chr)
 
@@ -249,6 +245,10 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
     return [ManeData(*list(r.values())) for r in mane_transcripts]
 
 
+# TODO
+# * these could be refactored into a single method
+# * not clear if all of them are necessary
+# * either way, they should all be renamed
 def get_chromosome_identifier(chromosome: str) -> str:
     """Get latest NC_ identifier given a chromosome name.
 
@@ -265,3 +265,37 @@ def get_chromosome_identifier(chromosome: str) -> str:
     return sorted_results[-1]
 
 
+def get_ucsc_chromosome_name(chromosome: str) -> str:
+    """Get UCSC/GENCODE-style chromosome name, eg ``"chr1"`` instead of ``"1"`` or
+    ``"NC_000001.11"``.
+
+    :param chromosome: chromosome name/identifier
+    :return: UCSC/GENCODE-style chromosome name
+    :raise KeyError: if unable to find matching name
+    """
+    sr = CoolSeqToolBuilder().seqrepo_access
+    result, _ = sr.translate_identifier(chromosome, "GRCh38")
+    if not result:
+        raise KeyError
+
+    sorted_results = sorted([r for r in result if "chr" in r])
+    try:
+        return sorted_results[-1].split(":")[1]
+    except IndexError:
+        raise KeyError
+
+
+def get_chromosome_identifier_from_vrs_id(sequence_id: str) -> Optional[str]:
+    """Get NC_ identifier given a VRS sequence ID.
+
+    :param sequence_id: identifier a la ``ga4gh:SQ.XXXXXX``
+    :return: NC_ chromosome ID
+    :raise KeyError: if unable to retrieve identifier
+    """
+    sr = CoolSeqToolBuilder().seqrepo_access
+    result, _ = sr.translate_identifier(sequence_id, "refseq")
+    if not result:
+        raise KeyError
+
+    sorted_results = sorted(result)
+    return sorted_results[-1]

@@ -4,16 +4,23 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, Generator, Optional
 
-from Bio.SearchIO import read as read_blat
-from Bio.SearchIO._model import QueryResult
+from Bio.SearchIO import HSP, read as read_blat
+from Bio.SearchIO._model import QueryResult, Hit
+from mavemap.lookup import get_chromosome_identifier, get_gene_location
 
 from mavemap.resources import get_mapping_tmp_dir, get_ref_genome_file
 from mavemap.schemas import (
     AlignmentResult,
+    GeneLocation,
+    HitFragment,
     ScoresetMetadata,
     SequenceRange,
     TargetSequenceType,
 )
+
+
+_logger = logging.getLogger(__name__)
+
 
 class AlignmentError(Exception):
     """Raise when errors encountered during alignment."""
@@ -54,8 +61,10 @@ def _run_blat_command(command: str, args: Dict) -> subprocess.CompletedProcess:
     return subprocess.run(command, shell=True, **args)
 
 
-# TODO make output object an arg
-def _get_blat_output(scoreset_metadata: ScoresetMetadata, query_file: Path, quiet: bool) -> QueryResult:
+# TODO make output object an arg???
+def _get_blat_output(
+    scoreset_metadata: ScoresetMetadata, query_file: Path, quiet: bool
+) -> QueryResult:
     """Run a BLAT query and returns a path to the output object.
 
     We create query and output files in the application's "temporary" folder, which
@@ -107,59 +116,120 @@ def _get_blat_output(scoreset_metadata: ScoresetMetadata, query_file: Path, quie
     return output
 
 
-def _get_best_match(output: QueryResult) -> AlignmentResult:
+def _get_best_hit(output: QueryResult, urn: str, chromosome: Optional[str]) -> Hit:
+    """Get best hit from BLAT output.
+
+    First, try to return hit corresponding to expected chromosome taken from scoreset
+    metadata. If chromosome doesn't match any of the outputs or is unavailable, take
+    the hit with the single highest-scoring HSP.
+
+    :param output: BLAT output
+    :param urn: scoreset URN to use in error messages
+    :param chromosome: refseq chromosome ID, e.g. ``"NC_000001.11"``
+    :return: best Hit
+    :raise AlignmentError: if unable to get hits from output
+    """
+    if chromosome:
+        for hit in output:
+            hit_chr = hit.id
+            if hit_chr.startswith("chr"):
+                hit_chr = hit_chr[3:]
+            hit_chr_ac = get_chromosome_identifier(hit_chr)
+            if hit_chr_ac == chromosome:
+                return hit
+        else:
+            if list(output):
+                hit_chrs = [h.id for h in output]
+                _logger.warning(
+                    f"Failed to match hit chromosomes during alignment. URN: "
+                    f"{urn}, expected chromosome: {chromosome}, hit chromosomes: {hit_chrs}"
+                )
+
+    best_score = 0
+    best_score_hit = None
+    for hit in output:
+        best_local_score = max(hit, key=lambda i: i.score).score
+        if best_local_score > best_score:
+            best_score = best_local_score
+            best_score_hit = hit
+
+    if best_score_hit is None:
+        _logger.error(f"Couldn't get hits from {urn} -- check BLAT output.")
+        raise AlignmentError
+
+    return best_score_hit
+
+
+def _get_best_hsp(hit: Hit, urn: str, gene_location: Optional[GeneLocation]) -> HSP:
+    """Retrieve preferred HSP from BLAT Hit object.
+
+    If gene location data is available, prefer the HSP with the least distance
+    between the start of the hit and the start coordinate of the gene. Otherwise,
+    take the HSP with the highest score value.
+
+    :param hit: hit object from BLAT result
+    :param urn: scoreset identifier for use in error messages
+    :param gene_location: location data acquired by normalizing scoreset metadata
+    :return: Preferred HSP object
+    :raise AlignmentError: if hit object appears to be empty (should be impossible)
+    """
+    best_hsp = None
+    if gene_location and gene_location.start is not None:
+        best_hsp = min(hit, key=lambda hsp: abs(hsp.hit_start - gene_location.start))
+    else:
+        best_hsp = max(hit, key=lambda hsp: hsp.score)
+    if best_hsp is None:
+        _logger.error(
+            f"Unable to get best HSP from hit -- this should be impossible? urn: {urn}, hit: {str(hit)}"
+        )
+        raise AlignmentError
+    return best_hsp
+
+
+def _get_best_match(output: QueryResult, metadata: ScoresetMetadata) -> AlignmentResult:
     """Obtain best high-scoring pairs (HSP) object for query sequence.
 
-    Initially, we do this naively (take first instance of best base score). In the
-    future, we should try to match against items pulled from scoreset metadata, like
-    UniProt accession info or locations of a named gene.
-
+    :param metadata: scoreset metadata
     :param output: BLAT result object
+    :return: alignment result ??
     """
-    best_score = 0
-    best_hsp = None
-    for hit in output:
-        for hsp in hit:
-            if hsp.score > best_score:
-                best_score = hsp.score
-                best_hsp = hsp
+    location = get_gene_location(metadata)
+    if location:
+        chromosome = location.chromosome
+    else:
+        chromosome = None
+    best_hit = _get_best_hit(output, metadata.urn, chromosome)
+    best_hsp = _get_best_hsp(best_hit, metadata.urn, location)
 
-    if best_hsp is None:
-        raise AlignmentError("No parseable BLAT query results found")
-
-    hsp = best_hsp
-    chrom = hsp.hit_id.strip("chr")
-    strand = hsp[0].query_strand
-    coverage = 100 * (hsp.query_end - hsp.query_start) / output.seq_len  # type: ignore
-    ident_pct = hsp.ident_pct
+    strand = hsp[0].strand  # type: ignore
+    coverage = 100 * (best_hsp.query_end - best_hsp.query_start) / output.seq_len  # type: ignore
+    identity = best_hsp.ident_pct  # type: ignore
+    chrom = best_hsp.hit_id
 
     query_subranges = []
     hit_subranges = []
-
-    for hsp_fragment in hsp:
+    for fragment in best_hsp:
         query_subranges.append(
-            SequenceRange(start=hsp_fragment.query_start, end=hsp_fragment.query_end)
+            SequenceRange(start=fragment.query_start, end=fragment.query_end)
         )
         hit_subranges.append(
-            SequenceRange(start=hsp_fragment.hit_start, end=hsp_fragment.hit_end)
+            SequenceRange(start=fragment.hit_start, end=fragment.hit_end)
         )
 
     result = AlignmentResult(
         chrom=chrom,
         strand=strand,
-        ident_pct=ident_pct,
+        ident_pct=identity,
         coverage=coverage,
-        query_range=SequenceRange(start=hsp.query_start, end=hsp.query_end),
+        query_range=SequenceRange(start=best_hsp.query_start, end=best_hsp.query_end),
         query_subranges=query_subranges,
-        hit_range=SequenceRange(start=hsp.hit_start, end=hsp.hit_end),
+        hit_range=SequenceRange(start=best_hsp.hit_start, end=best_hsp.hit_end),
         hit_subranges=hit_subranges,
     )
     return result
 
 
-def align(
-    scoreset_metadata: ScoresetMetadata, quiet: bool = True
-) -> AlignmentResult:
+def align(scoreset_metadata: ScoresetMetadata, quiet: bool = True) -> AlignmentResult:
     """Align target sequence to a reference genome.
 
     :param scoreset_metadata: object containing scoreset metadata
@@ -169,5 +239,5 @@ def align(
     query_file = next(_build_query_file(scoreset_metadata))
     blat_output = _get_blat_output(scoreset_metadata, query_file, quiet)
 
-    match = _get_best_match(blat_output)
+    match = _get_best_match(blat_output, scoreset_metadata)
     return match
