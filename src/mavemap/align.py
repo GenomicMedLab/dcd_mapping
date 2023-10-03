@@ -12,7 +12,6 @@ from mavemap.resources import get_mapping_tmp_dir, get_ref_genome_file
 from mavemap.schemas import (
     AlignmentResult,
     GeneLocation,
-    HitFragment,
     ScoresetMetadata,
     SequenceRange,
     TargetSequenceType,
@@ -201,9 +200,9 @@ def _get_best_match(output: QueryResult, metadata: ScoresetMetadata) -> Alignmen
     best_hit = _get_best_hit(output, metadata.urn, chromosome)
     best_hsp = _get_best_hsp(best_hit, metadata.urn, location)
 
-    strand = hsp[0].strand  # type: ignore
-    coverage = 100 * (best_hsp.query_end - best_hsp.query_start) / output.seq_len  # type: ignore
-    identity = best_hsp.ident_pct  # type: ignore
+    strand = best_hsp[0].query_strand
+    coverage = 100 * (best_hsp.query_end - best_hsp.query_start) / output.seq_len
+    identity = best_hsp.ident_pct
     chrom = best_hsp.hit_id
 
     query_subranges = []

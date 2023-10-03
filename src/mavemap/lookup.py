@@ -186,14 +186,14 @@ def _get_genomic_interval(
     locations = [ext for ext in extensions if f"{src_name}_locations" in ext.name]
     if locations and len(locations[0].value) > 0:
         location_values = [
-            v for v in locations[0].value if v.type == "SequenceLocation"
+            v for v in locations[0].value if v["type"] == "SequenceLocation"
         ]
         if location_values:
             return GeneLocation(
-                start=location_values[0].interval.start.value,
-                end=location_values[0].interval.end.value,
+                start=location_values[0]["interval"]["start"]["value"],
+                end=location_values[0]["interval"]["end"]["value"],
                 chromosome=get_chromosome_identifier_from_vrs_id(
-                    location_values[0].sequence_id
+                    location_values[0]["sequence_id"]
                 ),
             )
     return None
