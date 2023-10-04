@@ -208,7 +208,7 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
     2. Target name: specifically, we try the first word in the name (this could
     cause some problems and we should double-check it)
 
-    TODO:
+    Todo:
     ----
     * Fairly certain that we should be breaking this out into multiple functions to
       disaggregate chrom vs location fetching

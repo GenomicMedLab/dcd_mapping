@@ -87,13 +87,15 @@ select = ["E", "W", "F", "ANN", "Q", "D", "N", "I"]
 
 fixable = ["I"]
 
+# D203 - one-blank-line-before-class
 # D205 - blank-line-after-summary
+# D213 - multi-line-summary-second-line
 # D400 - ends-in-period
 # D415 - ends-in-punctuation
 # ANN101 - missing-type-self
 # ANN003 - missing-type-kwargs
 # E501 - line-too-long
-ignore = ["D205", "D400", "D415", "ANN101", "ANN003", "E501"]
+ignore = ["D203", "D205", "D213", "D400", "D415", "ANN101", "ANN003", "E501"]
 
 [tool.ruff.flake8-quotes]
 docstring-quotes = "double"

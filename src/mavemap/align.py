@@ -4,10 +4,11 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, Generator, Optional
 
-from Bio.SearchIO import HSP, read as read_blat
-from Bio.SearchIO._model import QueryResult, Hit
-from mavemap.lookup import get_chromosome_identifier, get_gene_location
+from Bio.SearchIO import HSP
+from Bio.SearchIO import read as read_blat
+from Bio.SearchIO._model import Hit, QueryResult
 
+from mavemap.lookup import get_chromosome_identifier, get_gene_location
 from mavemap.resources import get_mapping_tmp_dir, get_ref_genome_file
 from mavemap.schemas import (
     AlignmentResult,
@@ -16,7 +17,6 @@ from mavemap.schemas import (
     SequenceRange,
     TargetSequenceType,
 )
-
 
 _logger = logging.getLogger(__name__)
 
@@ -201,8 +201,8 @@ def _get_best_match(output: QueryResult, metadata: ScoresetMetadata) -> Alignmen
     best_hsp = _get_best_hsp(best_hit, metadata.urn, location)
 
     strand = best_hsp[0].query_strand
-    coverage = 100 * (best_hsp.query_end - best_hsp.query_start) / output.seq_len
-    identity = best_hsp.ident_pct
+    coverage = 100 * (best_hsp.query_end - best_hsp.query_start) / output.seq_len  # type: ignore
+    identity = best_hsp.ident_pct  # type: ignore
     chrom = best_hsp.hit_id
 
     query_subranges = []
