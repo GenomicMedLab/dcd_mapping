@@ -80,6 +80,13 @@ class AlignmentResult(BaseModel):
     hit_subranges: List[SequenceRange]
 
 
+class ManeStatus(str, Enum):
+    """Define legal MANE statuses."""
+
+    SELECT = "MANE Select"
+    PLUS_CLINICAL = "MANE Plus Clinical"
+
+
 class ManeData(BaseModel):
     """Structured MANE data retrieval result."""
 
@@ -92,8 +99,8 @@ class ManeData(BaseModel):
     refseq_prot: str
     ensembl_nuc: str
     ensembl_prot: str
-    mane_status: str
+    mane_status: ManeStatus
     grch38_chr: str
-    chr_start: str
-    chr_end: str
+    chr_start: int
+    chr_end: int
     chr_strand: str

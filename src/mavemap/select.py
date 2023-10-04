@@ -1,22 +1,34 @@
 """Select best reference sequence."""
+import logging
 from typing import List
 
-from mavemap.lookup import get_chromosome_identifier, get_gene_symbol, get_transcripts
+from Bio.Seq import Seq
+
+from mavemap.lookup import (
+    get_chromosome_identifier,
+    get_gene_symbol,
+    get_mane_transcript,
+    get_reference_sequence,
+    get_transcripts,
+)
 from mavemap.schemas import (
     AlignmentResult,
+    ManeStatus,
     ScoresetMetadata,
     TargetSequenceType,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class TxSelectError(Exception):
     """Raise for transcript selection failure."""
 
 
-def _get_matching_transcripts(
+def _get_compatible_transcripts(
     metadata: ScoresetMetadata, align_result: AlignmentResult
 ) -> List[List[str]]:
-    """TODO"""
+    """Acquire matching transcripts"""
     chromosome = get_chromosome_identifier(align_result.chrom)
     gene_symbol = get_gene_symbol(metadata)
     if not gene_symbol:
@@ -26,7 +38,8 @@ def _get_matching_transcripts(
         matches_list = get_transcripts(
             gene_symbol, chromosome, hit_range.start, hit_range.end
         )
-        transcript_matches.append(matches_list)
+        if matches_list:
+            transcript_matches.append(matches_list)
     return transcript_matches
 
 
@@ -39,7 +52,47 @@ def _select_protein_reference(
     :param align_result: alignment results
     :return: TODO
     """
-    matching_transcripts = _get_matching_transcripts(metadata, align_result)
+    matching_transcripts = _get_compatible_transcripts(metadata, align_result)
+
+    # drop transcripts not associated with all hit subranges
+    common_transcripts_set = set(matching_transcripts[0])
+    for sublist in matching_transcripts[1:]:
+        common_transcripts_set.intersection_update(sublist)
+    common_transcripts = list(common_transcripts_set)
+
+    # TODO if this fails, look up transcripts on uniprot?
+
+    mane_transcripts = get_mane_transcript(common_transcripts)
+
+    # TODO handle case where this is empty
+
+    if len(mane_transcripts) == 2:
+        if mane_transcripts[0].mane_status == ManeStatus.SELECT:
+            mane_tx = mane_transcripts[0]
+        else:
+            mane_tx = mane_transcripts[1]
+    elif len(mane_transcripts) == 1:
+        mane_tx = mane_transcripts[0]
+    else:
+        _logger.error(
+            f"Unexpected number of MANE transcripts: {len(mane_transcripts)}, urn: {metadata.urn}"
+        )
+        raise TxSelectError
+    np, nm, status = mane_tx.refseq_prot, mane_tx.refseq_nuc, mane_tx.mane_status
+
+    # TODO there's a thing here about taking the sequence as-is if it contains
+    # more than four unique chars, that seems off
+    # Check specific chars used instead?
+    if len(set(metadata.target_sequence)) > 4:
+        protein_sequence = metadata.target_sequence
+    else:
+        protein_sequence = str(
+            Seq(metadata.target_sequence).translate(table="1")
+        ).replace("*", "")
+
+    ref_sequence = get_reference_sequence(np)
+    is_full_match = ref_sequence.find(protein_sequence)
+    start = ref_sequence.find(protein_sequence[:10])  # TODO seems potentially sus?
 
 
 def select_reference(metadata: ScoresetMetadata, align_result: AlignmentResult) -> None:
@@ -234,9 +287,12 @@ for j in range(len(dat.index)):
           #  continue
         if item['chrom'] == 'NA':
             continue
-        locs = get_locs_list(item['hits'])
-        chrom = get_chr(dp, item['chrom'])
 
+        # hit subranges
+        locs = get_locs_list(item['hits'])
+        chrom = get_chr(dp, item['chrom'])  # probably an accession
+
+        # get gene symbol from uniprot/target name data
         try:
             uniprot = dat.at[j, 'uniprot_id']
             gsymb = qh.normalize(str(f'uniprot:{uniprot}')).gene_descriptor.label
@@ -246,6 +302,11 @@ for j in range(len(dat.index)):
                 temp[0] = 'JAK1'
             gsymb = qh.normalize(temp[0]).gene_descriptor.label
 
+
+        # for each hit subrange start/end pair, get compatible transcript accessions
+        # drop any with NR_ prefixes
+        # if non empty, append to overall list
+        # return overall list of lists
         async def mapq():
             transcript_lists = []
             for i in range(len(locs)):

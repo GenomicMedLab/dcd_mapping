@@ -3,6 +3,7 @@
 This module should contain methods that we don't want to think about caching.
 """
 import asyncio
+import logging
 from typing import List, Optional
 
 import requests
@@ -13,34 +14,10 @@ from gene.query import QueryHandler
 
 from mavemap.schemas import GeneLocation, ManeData, ScoresetMetadata
 
-
-def get_clingen_id(hgvs: str) -> Optional[str]:
-    """Fetch ClinGen ID. TODO finish this.
-
-    :param hgvs: HGVS ID todo ??
-    :return: ClinGen ID if available
-    :raise HTTPError: if request encounters an error
-    """
-    url = f"https://reg.genome.network/allele?hgvs={hgvs}"
-    response = requests.get(url)
-    response.raise_for_status()
-    page = response.json()
-    page = page["@id"]
-    return page.split("/")[4]
+_logger = logging.getLogger(__name__)
 
 
-def get_uniprot_sequence(uniprot_id: str) -> Optional[str]:
-    """Get sequence directly from UniProt.
-
-    :param uniprot_id: ID provided with target info
-    :return: transcript accession if successful
-    :raise HTTPError: if response comes with an HTTP error code
-    """
-    url = f"https://www.ebi.ac.uk/proteins/api/proteins?accession={uniprot_id.split(':')[1]}&format=json"
-    response = requests.get(url)
-    response.raise_for_status()
-    json = response.json()
-    return json[0]["sequence"]["sequence"]
+# ---------------------------------- Global ---------------------------------- #
 
 
 class CoolSeqToolBuilder:
@@ -55,6 +32,9 @@ class CoolSeqToolBuilder:
             q = QueryHandler(create_db())
             cls.instance = CoolSeqTool(gene_query_handler=q)
         return cls.instance
+
+
+# ----------------------------------- UTA ----------------------------------- #
 
 
 def get_protein_accession(transcript: str) -> Optional[str]:
@@ -74,9 +54,9 @@ def get_protein_accession(transcript: str) -> Optional[str]:
 
 
 def get_transcripts(
-    gene_symbol: str, chromosome: str, start: int, end: int
+    gene_symbol: str, chromosome_ac: str, start: int, end: int
 ) -> List[str]:
-    """Get transcript accessions matching given parameters.
+    """Get transcript accessions matching given parameters (excluding non-coding RNA).
 
     TODO: may be able to successfully query with only one of gene symbol/chromosome ac.
 
@@ -92,12 +72,46 @@ def get_transcripts(
     SELECT tx_ac
     FROM {uta.schema}.tx_exon_aln_v
     WHERE hgnc = '{gene_symbol}'
-    AND {start} BETWEEN alt_start_i AND alt_end_i
-    OR {end} BETWEEN alt_start_i AND alt_end_i
-    AND alt_ac = '{chromosome}';
+      AND ({start} BETWEEN alt_start_i AND alt_end_i OR {end} BETWEEN alt_start_i AND alt_end_i)
+      AND alt_ac = '{chromosome_ac}'
+      AND tx_ac NOT LIKE 'NR_%';
     """
     result = asyncio.run(uta.execute_query(query))
     return [row["tx_ac"] for row in result.items()]
+
+
+def get_mane_transcript(transcripts: List[str]) -> List[ManeData]:
+    """Get corresponding MANE data for transcripts.
+
+    :param transcripts: candidate transcripts list
+    :return: complete MANE descriptions
+    """
+    mane = CoolSeqToolBuilder().mane_transcript_mappings
+    mane_transcripts = mane.get_mane_from_transcripts(transcripts)
+    mane_data = []
+    for result in mane_transcripts:
+        mane_data.append(
+            ManeData(
+                ncbi_gene_id=result["#NCBI_GeneID"],
+                ensembl_gene_id=result["Ensembl_Gene"],
+                hgnc_gene_id=result["HGNC_ID"],
+                symbol=result["symbol"],
+                name=result["name"],
+                refseq_nuc=result["RefSeq_nuc"],
+                refseq_prot=result["RefSeq_prot"],
+                ensembl_nuc=result["Ensembl_nuc"],
+                ensembl_prot=result["Ensembl_prot"],
+                mane_status=result["MANE_status"],
+                grch38_chr=result["GRCh38_chr"],
+                chr_start=result["chr_start"],
+                chr_end=result["chr_end"],
+                chr_strand=result["chr_strand"],
+            )
+        )
+    return mane_data
+
+
+# ------------------------------ Gene Normalizer ------------------------------ #
 
 
 def _get_hgnc_symbol(term: str) -> Optional[str]:
@@ -208,11 +222,6 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
     2. Target name: specifically, we try the first word in the name (this could
     cause some problems and we should double-check it)
 
-    Todo:
-    ----
-    * Fairly certain that we should be breaking this out into multiple functions to
-      disaggregate chrom vs location fetching
-
     :param metadata: data given by MaveDB API
     :return: gene location data if available
     """
@@ -234,21 +243,13 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
     return None
 
 
-def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
-    """Get corresponding MANE data for transcripts.
-
-    :param transcripts: candidate transcripts
-    :return: complete MANE descriptions
-    """
-    mane = CoolSeqToolBuilder().mane_transcript_mappings
-    mane_transcripts = mane.get_mane_from_transcripts(transcripts)
-    return [ManeData(*list(r.values())) for r in mane_transcripts]
-
-
+# --------------------------------- SeqRepo --------------------------------- #
 # TODO
 # * these could be refactored into a single method
 # * not clear if all of them are necessary
 # * either way, they should all be renamed
+
+
 def get_chromosome_identifier(chromosome: str) -> str:
     """Get latest NC_ identifier given a chromosome name.
 
@@ -299,3 +300,54 @@ def get_chromosome_identifier_from_vrs_id(sequence_id: str) -> Optional[str]:
 
     sorted_results = sorted(result)
     return sorted_results[-1]
+
+
+def get_reference_sequence(sequence_id: str) -> str:
+    """Get reference sequence given a sequnce identifier.
+
+    :param sequence_id: sequence identifier, e.g. ``"NP_938033.1"``
+    :return: sequence
+    :raise KeyError: if lookup fails
+    """
+    sr = CoolSeqToolBuilder().seqrepo_access
+    try:
+        sequence = sr.get_sequence(sequence_id)
+    except (KeyError, ValueError):
+        _logger.error(f"Unable to acquire sequence for ID: {sequence_id}")
+        raise KeyError
+    if sequence is None:
+        _logger.error(f"Unable to acquire sequence for ID: {sequence_id}")
+        raise KeyError
+    return sequence
+
+
+# ---------------------------------- Misc. ---------------------------------- #
+
+
+def get_clingen_id(hgvs: str) -> Optional[str]:
+    """Fetch ClinGen ID. TODO finish this.
+
+    :param hgvs: HGVS ID todo ??
+    :return: ClinGen ID if available
+    :raise HTTPError: if request encounters an error
+    """
+    url = f"https://reg.genome.network/allele?hgvs={hgvs}"
+    response = requests.get(url)
+    response.raise_for_status()
+    page = response.json()
+    page = page["@id"]
+    return page.split("/")[4]
+
+
+def get_uniprot_sequence(uniprot_id: str) -> Optional[str]:
+    """Get sequence directly from UniProt.
+
+    :param uniprot_id: ID provided with target info
+    :return: transcript accession if successful
+    :raise HTTPError: if response comes with an HTTP error code
+    """
+    url = f"https://www.ebi.ac.uk/proteins/api/proteins?accession={uniprot_id.split(':')[1]}&format=json"
+    response = requests.get(url)
+    response.raise_for_status()
+    json = response.json()
+    return json[0]["sequence"]["sequence"]
