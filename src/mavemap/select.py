@@ -61,6 +61,7 @@ def select_reference(metadata: ScoresetMetadata, align_result: AlignmentResult) 
     else:
         raise ValueError  # TODO
 
+
 """WORKING HERE
 ## Helper functions
 
@@ -248,12 +249,12 @@ for j in range(len(dat.index)):
         async def mapq():
             transcript_lists = []
             for i in range(len(locs)):
-                testquery = (f"""select *
+                testquery = (f\"""select *
                             from uta_20210129.tx_exon_aln_v
                             where hgnc = '{gsymb}'
                             and {locs[i][0]} between alt_start_i and alt_end_i
                             or {locs[i][1]} between alt_start_i and alt_end_i
-                            and alt_ac = '{chrom}'""")
+                            and alt_ac = '{chrom}'\""")
 
                 out = await utadb.execute_query(testquery)
                 tl = []
