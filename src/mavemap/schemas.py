@@ -24,6 +24,12 @@ class ReferenceGenome(str, Enum):
     HG38 = "hg38"
 
 
+class TargetType(str, Enum):
+    """Define target gene types."""
+
+    PROTEIN_CODING = "Protein coding"
+
+
 class UniProtRef(BaseModel):
     """Store metadata associated with MaveDB UniProt reference"""
 
@@ -36,7 +42,7 @@ class ScoresetMetadata(BaseModel):
 
     urn: str
     target_gene_name: str
-    target_gene_category: str
+    target_gene_category: TargetType
     target_sequence: str
     target_sequence_type: TargetSequenceType
     target_reference_genome: ReferenceGenome
@@ -80,11 +86,12 @@ class AlignmentResult(BaseModel):
     hit_subranges: List[SequenceRange]
 
 
-class ManeStatus(str, Enum):
+class TranscriptStatus(str, Enum):
     """Define legal MANE statuses."""
 
     SELECT = "MANE Select"
     PLUS_CLINICAL = "MANE Plus Clinical"
+    LONGEST_COMPATIBLE = "Longest Compatible"
 
 
 class ManeData(BaseModel):
@@ -99,7 +106,7 @@ class ManeData(BaseModel):
     refseq_prot: str
     ensembl_nuc: str
     ensembl_prot: str
-    mane_status: ManeStatus
+    mane_status: TranscriptStatus
     grch38_chr: str
     chr_start: int
     chr_end: int

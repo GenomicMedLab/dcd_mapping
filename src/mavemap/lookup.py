@@ -2,7 +2,6 @@
 
 This module should contain methods that we don't want to think about caching.
 """
-import asyncio
 import logging
 from typing import List, Optional
 
@@ -11,6 +10,7 @@ from cool_seq_tool import CoolSeqTool
 from ga4gh.vrsatile.pydantic.vrsatile_models import Extension, GeneDescriptor
 from gene.database import create_db
 from gene.query import QueryHandler
+from gene.schemas import SourceName
 
 from mavemap.schemas import GeneLocation, ManeData, ScoresetMetadata
 
@@ -37,7 +37,7 @@ class CoolSeqToolBuilder:
 # ----------------------------------- UTA ----------------------------------- #
 
 
-def get_protein_accession(transcript: str) -> Optional[str]:
+async def get_protein_accession(transcript: str) -> Optional[str]:
     """Retrieve protein accession for a transcript.
 
     :param transcript: transcript accession, e.g. ``"NM_002529.3"``
@@ -48,12 +48,12 @@ def get_protein_accession(transcript: str) -> Optional[str]:
     SELECT pro_ac FROM {uta.schema}.associated_accessions
     WHERE tx_ac = '{transcript}'
     """
-    result = asyncio.run(uta.execute_query(query))
+    result = await uta.execute_query(query)
     if result:
         return result[0]["pro_ac"]
 
 
-def get_transcripts(
+async def get_transcripts(
     gene_symbol: str, chromosome_ac: str, start: int, end: int
 ) -> List[str]:
     """Get transcript accessions matching given parameters (excluding non-coding RNA).
@@ -76,11 +76,11 @@ def get_transcripts(
       AND alt_ac = '{chromosome_ac}'
       AND tx_ac NOT LIKE 'NR_%';
     """
-    result = asyncio.run(uta.execute_query(query))
-    return [row["tx_ac"] for row in result.items()]
+    result = await uta.execute_query(query)
+    return [row["tx_ac"] for row in result]
 
 
-def get_mane_transcript(transcripts: List[str]) -> List[ManeData]:
+def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
     """Get corresponding MANE data for transcripts.
 
     :param transcripts: candidate transcripts list
@@ -122,11 +122,11 @@ def _get_hgnc_symbol(term: str) -> Optional[str]:
     """
     q = CoolSeqToolBuilder().gene_query_handler
     result = q.normalize_unmerged(term)
-    if "HGNC" in result.source_matches:
-        hgnc = result.source_matches["HGNC"]  # type: ignore
-        if len(hgnc.records) > 0:
-            # probably fine to just use first match
-            return hgnc.records[0].symbol
+    hgnc = result.source_matches.get(SourceName.HGNC)
+    if hgnc and len(hgnc.records) > 0:
+        # probably fine to just use first match
+        return hgnc.records[0].symbol
+    return None
 
 
 def get_gene_symbol(metadata: ScoresetMetadata) -> Optional[str]:

@@ -51,6 +51,8 @@ def _run_blat_command(command: str, args: Dict) -> subprocess.CompletedProcess:
     environment's PATH. This is sort of awkward and it'd be nice to make use of some
     direct bindings or better packaging if that's possible.
 
+    Perhaps `gget`? https://pachterlab.github.io/gget/en/blat.html
+
     This function is broken out to enable mocking while testing.
 
     :param command: shell command to execute
