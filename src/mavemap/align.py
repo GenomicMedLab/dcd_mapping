@@ -79,21 +79,19 @@ def _get_blat_output(
     :raise AlignmentError: if BLAT subprocess returns error code
     """
     reference_genome_file = get_ref_genome_file()
-    # TODO is this min score value correct?
-    # min_score = len(scoreset_metadata.target_sequence) // 2  # minimum match 50%
-    min_score = 20
     out_file = get_mapping_tmp_dir() / "blat_out.psl"
 
     if scoreset_metadata.target_sequence_type == TargetSequenceType.PROTEIN:
-        command = f"blat {reference_genome_file} -q=prot -t=dnax -minScore={min_score} {query_file} {out_file}"
+        target_commands = "-q=prot -t=dnax"
     elif scoreset_metadata.target_sequence_type == TargetSequenceType.DNA:
-        command = f"blat {reference_genome_file} -q=dnax -t=dnax -minScore={min_score} {query_file} {out_file}"
+        target_commands = "-q=dnax -t=dnax"
     else:
         query_file.unlink()
         out_file.unlink()
         raise AlignmentError(
             f"Unknown target sequence type: {scoreset_metadata.target_sequence_type} for scoreset {scoreset_metadata.urn}"
         )
+    command = f"blat {reference_genome_file} {target_commands} -minScore=20 {query_file} {out_file}"
     if quiet:
         kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.STDOUT}
     else:
@@ -105,7 +103,7 @@ def _get_blat_output(
         raise AlignmentError(
             f"BLAT process returned error code {process.returncode}: {command}"
         )
-
+    # TODO
     # the notebooks handle errors here by trying different BLAT arg configurations --
     # investigate, refer to older code if it comes up
     output = read_blat(out_file.absolute(), "blat-psl")

@@ -7,6 +7,7 @@ from mavemap.align import AlignmentError, align
 from mavemap.resources import get_scoreset_metadata, get_scoreset_records
 from mavemap.schemas import ScoreRow, ScoresetMetadata
 from mavemap.select import TxSelectError, select_reference
+from mavemap.vrs_map import VrsMapError, vrs_map
 
 _logger = logging.getLogger(__name__)
 
@@ -27,10 +28,15 @@ def map_scoreset(metadata: ScoresetMetadata, records: List[ScoreRow]) -> None:
         return None
 
     try:
-        _ = asyncio.run(select_reference(metadata, alignment_result))
+        transcript = asyncio.run(select_reference(metadata, alignment_result))
     except TxSelectError:
         _logger.error(f"Transcript selection failed for scoreset {metadata.urn}")
         return None
+
+    try:
+        _ = vrs_map(metadata, transcript, records)
+    except VrsMapError:
+        _logger.error(f"VRS mapping failed for scoreset {metadata.urn}")
 
     # TODO standardize to VRS
 

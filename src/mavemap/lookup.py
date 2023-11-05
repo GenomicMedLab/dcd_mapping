@@ -3,10 +3,18 @@
 This module should contain methods that we don't want to think about caching.
 """
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
+from cool_seq_tool.data_sources.seqrepo_access import SeqRepoAccess
+from ga4gh.vrsatile.pydantic.vrs_models import (
+    Allele,
+    Number,
+    SequenceInterval,
+    SequenceLocation,
+)
 
 import requests
 from cool_seq_tool import CoolSeqTool
+from ga4gh.vrs.extras.translator import Translator
 from ga4gh.vrsatile.pydantic.vrsatile_models import Extension, GeneDescriptor
 from gene.database import create_db
 from gene.query import QueryHandler
@@ -15,7 +23,6 @@ from gene.schemas import SourceName
 from mavemap.schemas import GeneLocation, ManeData, ScoresetMetadata
 
 _logger = logging.getLogger(__name__)
-
 
 # ---------------------------------- Global ---------------------------------- #
 
@@ -31,6 +38,26 @@ class CoolSeqToolBuilder:
         if not hasattr(cls, "instance"):
             q = QueryHandler(create_db())
             cls.instance = CoolSeqTool(gene_query_handler=q)
+        return cls.instance
+
+
+def get_seqrepo() -> SeqRepoAccess:
+    """Retrieve SeqRepo access instance."""
+    cst = CoolSeqToolBuilder()
+    return cst.seqrepo_access
+
+
+class VrsTranslatorBuilder:
+    """Singleton constructor for VRS-Python translator instance."""
+
+    def __new__(cls) -> Translator:
+        """Provide VRS-Python translator. Construct if unavailable.
+
+        :return: singleton instances of Translator
+        """
+        if not hasattr(cls, "instance"):
+            cst = CoolSeqToolBuilder()
+            cls.instance = Translator(cst.seqrepo_access, normalize=False)
         return cls.instance
 
 
@@ -245,9 +272,9 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
 
 # --------------------------------- SeqRepo --------------------------------- #
 # TODO
-# * these could be refactored into a single method
+# * some of these could be refactored into a single method
 # * not clear if all of them are necessary
-# * either way, they should all be renamed
+# * either way, they should all be renamed once we have a final idea of what's needed
 
 
 def get_chromosome_identifier(chromosome: str) -> str:
@@ -302,8 +329,10 @@ def get_chromosome_identifier_from_vrs_id(sequence_id: str) -> Optional[str]:
     return sorted_results[-1]
 
 
-def get_reference_sequence(sequence_id: str) -> str:
-    """Get reference sequence given a sequnce identifier.
+def get_sequence(
+    sequence_id: str, start: Optional[int] = None, end: Optional[int] = None
+) -> str:
+    """Get reference sequence given a sequence identifier.
 
     :param sequence_id: sequence identifier, e.g. ``"NP_938033.1"``
     :return: sequence
@@ -311,7 +340,7 @@ def get_reference_sequence(sequence_id: str) -> str:
     """
     sr = CoolSeqToolBuilder().seqrepo_access
     try:
-        sequence = sr.get_sequence(sequence_id)
+        sequence = sr.get_sequence(sequence_id, start, end)
     except (KeyError, ValueError):
         _logger.error(f"Unable to acquire sequence for ID: {sequence_id}")
         raise KeyError
@@ -319,6 +348,48 @@ def get_reference_sequence(sequence_id: str) -> str:
         _logger.error(f"Unable to acquire sequence for ID: {sequence_id}")
         raise KeyError
     return sequence
+
+
+def store_sequence(sequence: str, names: List[Dict]) -> None:
+    """Store sequnce in SeqRepo.
+
+    I'm a little queasy about this part -- it seems potentially dangerous to be
+    modifying state outside of the mapper library itself, particularly if there
+    are any needs for those changes to endure (and if there aren't, why are we
+    modifying outside state in the first place?).
+
+    Currently unused unless we really really need this functionality.
+
+    :param sequence: raw sequence
+    :param names: list of namespace/alias pairs,
+        e.g. ``{"namespace": "GA4GH", "alias": "SQ.XXXXXX"}
+    """
+    sr = CoolSeqToolBuilder().seqrepo_access
+    sr.sr.store(sequence, nsaliases=names)
+
+
+# -------------------------------- VRS-Python -------------------------------- #
+
+
+def hgvs_to_vrs(hgvs: str) -> Allele:
+    """Convert HGVS variation description to VRS object.
+
+    :param hgvs: MAVE-HGVS variation string
+    :return: Corresponding VRS allele as a Pydantic class
+    """
+    tr = VrsTranslatorBuilder()
+    vrs_allele = tr.translate_from(hgvs, "hgvs")
+    allele = Allele(**vrs_allele)
+
+    if (
+        not isinstance(allele.location, SequenceLocation)
+        or not isinstance(allele.location.interval, SequenceInterval)
+        or not isinstance(allele.location.interval.start, Number)
+        or not isinstance(allele.location.interval.end, Number)
+    ):
+        raise ValueError
+
+    return allele
 
 
 # ---------------------------------- Misc. ---------------------------------- #

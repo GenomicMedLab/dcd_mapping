@@ -8,7 +8,7 @@ from mavemap.lookup import (
     get_chromosome_identifier,
     get_gene_symbol,
     get_mane_transcripts,
-    get_reference_sequence,
+    get_sequence,
     get_transcripts,
 )
 from mavemap.schemas import (
@@ -88,6 +88,25 @@ def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeD
         raise TxSelectError
 
 
+def _get_protein_sequence(target_sequence: str) -> str:
+    """Get protein sequence if necessary.
+
+    :param target_sequence: sequence set as baseline in MAVE experiment (might already
+        be set to protein)
+    :return: resulting protein sequence
+    """
+    # TODO there's a thing here about taking the sequence as-is if it contains
+    # more than four unique chars, that seems off
+    # Check specific chars used instead?
+    if len(set(target_sequence)) > 4:
+        protein_sequence = target_sequence
+    else:
+        protein_sequence = str(
+            Seq(target_sequence).translate(table="1")
+        ).replace("*", "")
+    return protein_sequence
+
+
 async def _select_protein_reference(
     metadata: ScoresetMetadata, align_result: AlignmentResult
 ) -> Dict:
@@ -104,27 +123,18 @@ async def _select_protein_reference(
     mane_transcripts = get_mane_transcripts(common_transcripts)
     best_tx = _choose_best_transcript(mane_transcripts, metadata.urn)
 
-    np, nm, status = best_tx.refseq_prot, best_tx.refseq_nuc, best_tx.mane_status
+    protein_sequence = _get_protein_sequence(metadata.target_sequence)
 
-    # TODO there's a thing here about taking the sequence as-is if it contains
-    # more than four unique chars, that seems off
-    # Check specific chars used instead?
-    if len(set(metadata.target_sequence)) > 4:
-        protein_sequence = metadata.target_sequence
-    else:
-        protein_sequence = str(
-            Seq(metadata.target_sequence).translate(table="1")
-        ).replace("*", "")
-
-    ref_sequence = get_reference_sequence(np)
-    is_full_match = ref_sequence.find(protein_sequence)
+    ref_sequence = get_sequence(best_tx.refseq_prot)
+    is_full_match = ref_sequence.find(protein_sequence) != -1
     start = ref_sequence.find(protein_sequence[:10])  # TODO seems potentially sus?
     protein_mapping_info = {
-        "nm": nm,
-        "np": np,
+        "nm": best_tx.refseq_nuc,
+        "np": best_tx.refseq_prot,
         "start": start,
         "is_full_match": is_full_match,
-        "transcript_mode": status,  # TODO ?????
+        "protein_sequence": protein_sequence,
+        "transcript_mode": best_tx.mane_status,  # TODO return to this
     }
     return protein_mapping_info
 
@@ -134,11 +144,11 @@ async def select_reference(
 ) -> Dict:
     """Select appropriate human reference sequence for scoreset.
 
-    Fairly trivial for regulatory/other noncoding scoresets which report genomic
+    * Fairly trivial for regulatory/other noncoding scoresets which report genomic
     variations.
-    For protein scoresets, identify a matching RefSeq protein reference sequence.
-    More description here TODO.
-    Return type unclear
+    * For protein scoresets, identify a matching RefSeq protein reference sequence.
+    * More description here TODO.
+    * Return type unclear
 
     :param metadata: Scoreset metadata from MaveDB
     :param align_result: alignment results
@@ -149,6 +159,6 @@ async def select_reference(
     if metadata.target_sequence_type == TargetSequenceType.PROTEIN:
         return await _select_protein_reference(metadata, align_result)
     elif metadata.target_sequence_type == TargetSequenceType.DNA:
-        return {}
+        return {}  # TODO ??
     else:
         raise ValueError  # TODO

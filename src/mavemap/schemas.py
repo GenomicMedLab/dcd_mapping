@@ -111,3 +111,9 @@ class ManeData(BaseModel):
     chr_start: int
     chr_end: int
     chr_strand: str
+
+class HgvsTypePrefix(str, Enum):
+
+    PROTEIN = "p"
+    LINEAR_GENOMIC = "g"
+
