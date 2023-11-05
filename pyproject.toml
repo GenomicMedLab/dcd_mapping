@@ -33,7 +33,7 @@ dependencies = [
     "click",
     "cool-seq-tool==0.1.14-dev1",  # temporary pin
     "gene-normalizer==0.1.40-dev0",  # temporary pin
-    "mavetools",
+    "ga4gh.vrsatile.pydantic==0.0.13",  # temporary pin
     "pydantic",
     "fastapi",
     "python-dotenv",
