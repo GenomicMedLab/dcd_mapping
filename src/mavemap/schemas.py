@@ -112,8 +112,9 @@ class ManeData(BaseModel):
     chr_end: int
     chr_strand: str
 
+
 class HgvsTypePrefix(str, Enum):
+    """Define HGVS sequence type prefixes."""
 
     PROTEIN = "p"
     LINEAR_GENOMIC = "g"
-

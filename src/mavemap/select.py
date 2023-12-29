@@ -101,9 +101,9 @@ def _get_protein_sequence(target_sequence: str) -> str:
     if len(set(target_sequence)) > 4:
         protein_sequence = target_sequence
     else:
-        protein_sequence = str(
-            Seq(target_sequence).translate(table="1")
-        ).replace("*", "")
+        protein_sequence = str(Seq(target_sequence).translate(table="1")).replace(
+            "*", ""
+        )
     return protein_sequence
 
 

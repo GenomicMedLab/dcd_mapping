@@ -1,22 +1,22 @@
 """Map transcripts to VRS objects."""
-from enum import Enum
 from typing import Dict, List, Optional, Union
+
 from Bio.Seq import Seq
-
-
 from ga4gh.core import sha512t24u
 from ga4gh.vrsatile.pydantic.vrs_models import (
     CURIE,
     Allele,
-    Number,
-    SequenceInterval,
-    SequenceLocation,
-    SimpleInterval,
     Text,
 )
 
-from mavemap.lookup import get_sequence, hgvs_to_vrs, store_sequence
-from mavemap.schemas import AlignmentResult, HgvsTypePrefix, ScoreRow, ScoresetMetadata, TargetType
+from mavemap.lookup import hgvs_to_vrs
+from mavemap.schemas import (
+    AlignmentResult,
+    HgvsTypePrefix,
+    ScoreRow,
+    ScoresetMetadata,
+    TargetType,
+)
 
 
 class VrsMapError(Exception):
@@ -57,8 +57,7 @@ def _get_haplotype_allele(
     sequence: str,
     offset: int = 0,
     mapped: bool = False,
-    align_data: Optional[AlignmentResult] = None
-
+    align_data: Optional[AlignmentResult] = None,
 ) -> Union[Allele, Text]:
     """TODO
 
@@ -98,8 +97,6 @@ def _get_haplotype_allele(
                     raise ValueError
                 else:
                     raise ValueError
-
-
 
 
 def vrs_map(metadata: ScoresetMetadata, transcript: Dict, records: List[ScoreRow]):

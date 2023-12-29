@@ -4,17 +4,17 @@ This module should contain methods that we don't want to think about caching.
 """
 import logging
 from typing import Dict, List, Optional
+
+import requests
+from cool_seq_tool import CoolSeqTool
 from cool_seq_tool.data_sources.seqrepo_access import SeqRepoAccess
+from ga4gh.vrs.extras.translator import Translator
 from ga4gh.vrsatile.pydantic.vrs_models import (
     Allele,
     Number,
     SequenceInterval,
     SequenceLocation,
 )
-
-import requests
-from cool_seq_tool import CoolSeqTool
-from ga4gh.vrs.extras.translator import Translator
 from ga4gh.vrsatile.pydantic.vrsatile_models import Extension, GeneDescriptor
 from gene.database import create_db
 from gene.query import QueryHandler
