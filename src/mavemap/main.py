@@ -28,15 +28,15 @@ async def map_scoreset(
         return None
 
     try:
-        transcript = await select_reference(metadata, alignment_result)
+        transcript = await select_reference(metadata, records, alignment_result, silent)
     except TxSelectError:
         _logger.error(f"Transcript selection failed for scoreset {metadata.urn}")
         return None
 
-    try:
-        _ = vrs_map(metadata, transcript, records)
-    except VrsMapError:
-        _logger.error(f"VRS mapping failed for scoreset {metadata.urn}")
+    # try:
+    #     _ = vrs_map(metadata, transcript, records)
+    # except VrsMapError:
+    #     _logger.error(f"VRS mapping failed for scoreset {metadata.urn}")
 
 
 async def map_scoreset_urn(scoreset_urn: str, silent: bool = True) -> None:

@@ -17,6 +17,7 @@ from mavemap.lookup import (
 from mavemap.schemas import (
     AlignmentResult,
     ManeData,
+    ScoreRow,
     ScoresetMetadata,
     TargetSequenceType,
     TargetType,
@@ -152,9 +153,14 @@ async def _select_protein_reference(
     :param metadata: Scoreset metadata from MaveDB
     :param align_result: alignment results
     :return: Best transcript and associated metadata
+    :raise TxSelectError: if no matching MANE transcripts and unable to get UniProt ID/
+    reference sequence
     """
     matching_transcripts = await _get_compatible_transcripts(metadata, align_result)
-    common_transcripts = _reduce_compatible_transcripts(matching_transcripts)
+    if not matching_transcripts:
+        common_transcripts = None
+    else:
+        common_transcripts = _reduce_compatible_transcripts(matching_transcripts)
     if not common_transcripts:
         if not metadata.target_uniprot_ref:
             raise TxSelectError(
@@ -193,8 +199,106 @@ async def _select_protein_reference(
     return protein_mapping_info
 
 
+def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow]) -> int:
+    """TODO
+
+    # Find start location in provided target sequence when start position is not first position of sequence
+    import operator
+    offset_within_ts = {}
+
+    def validation_helper(protstring):
+        protstring = protstring[1:][:-1]
+        vs = protstring.split(';')
+        return vs
+
+    for i in range(len(mave_dat.index)):
+        if mave_dat.at[i, 'target_type'] == 'Protein coding' and mave_dat.at[i, 'target_sequence_type'] == 'dna':
+            urn = mave_dat.at[i, 'urn']
+            if urn == 'urn:mavedb:00000053-a-1' or urn == 'urn:mavedb:00000053-a-2': # target sequence missing codon
+                continue
+            oseq = Seq(mave_dat.at[i, 'target_sequence'])
+            ts = str(oseq.translate(table = 1))
+
+            string = 'https://api.mavedb.org/api/v1/scoresets/urn%3Amavedb%3A' + mave_dat.at[i, 'urn'][11::] + '/scores'
+            origdat = requests.get(string).content
+            dat = pd.read_csv(io.StringIO(origdat.decode('utf-8')))
+
+            protlist = dat['hgvs_pro'].to_list()
+            if type(dat.at[0, 'hgvs_pro']) != str or dat.at[0, 'hgvs_pro'].startswith('NP'):
+                continue
+            protlist = [x.lstrip('p.') for x in protlist]
+
+            aa_dict = {}
+            for k in range(len(protlist)):
+                if protlist[k] == '_sy' or protlist[k] == '_wt':
+                    continue
+                else:
+                    if ';' in protlist[k]:
+                        vs = validation_helper(protlist[k])
+                        for l in range(len(vs)):
+                            aa = vs[l][:3]
+                            if aa == '=' or vs[l][-3:] not in Bio.SeqUtils.IUPACData.protein_letters_3to1.keys():
+                                continue
+                            if '=' in vs[l]:
+                                loc = vs[l][3:][:-1]
+                            else:
+                                loc = vs[l][3:][:-3]
+                            if loc not in aa_dict:
+                                loc = re.sub('[^0-9]', '', loc)
+                                aa_dict[loc] = seq1(aa)
+
+                    else:
+                        if '_' in protlist[k]:
+                            continue
+                        aa = protlist[k][:3]
+                        if aa == '=' or protlist[k][-3:] not in Bio.SeqUtils.IUPACData.protein_letters_3to1.keys():
+                            continue
+                        if '=' in protlist[k]:
+                            loc = protlist[k][3:][:-1]
+                        else:
+                            loc = protlist[k][3:][:-3]
+                        if loc not in aa_dict:
+                            loc = re.sub('[^0-9]', '', loc)
+                            aa_dict[loc] = seq1(aa)
+
+
+            aa_dict.pop('', None)
+
+            err_locs = []
+            for m in range(len(ts)):
+                if str(m) in list(aa_dict.keys()):
+                    if aa_dict[str(m)] != ts[int(m) - 1]: # Str vs dict offset
+                        err_locs.append(m)
+
+            if len(err_locs) > 1:
+                aa_dict = {int(k):v for k,v in aa_dict.items()}
+                aa_dict = sorted(aa_dict.items())
+                aa_dict = dict(aa_dict)
+                locs = list(aa_dict.keys())[0:5]
+                p0, p1, p2, p3, p4 = locs[0], locs[1], locs[2], locs[3], locs[4]
+                offset = locs[0]
+
+                seq = ''
+                for key in aa_dict:
+                    seq = seq + aa_dict[key]
+
+                for i in range(len(ts)):
+                    if ts[i] == aa_dict[p0] and ts[i + p1 - p0] == aa_dict[p1] and ts[i + p2 - p0] == aa_dict[p2] and ts[i + p3 - p0] == aa_dict[p3] and ts[i + p4 - p0] == aa_dict[p4]:
+                        if i + 1 == min(aa_dict.keys()) or i + 2 == min(aa_dict.keys()):
+                            offset_within_ts[urn] = 0
+                        else:
+                            offset_within_ts[urn] = i
+                        break
+
+    for key in offset_within_ts:
+        mappings_dict[key][1] = offset_within_ts[key]
+    """
+
+    return 0  # TODO
+
+
 async def select_reference(
-    metadata: ScoresetMetadata, align_result: AlignmentResult, silent: bool = False
+    metadata: ScoresetMetadata, records: List[ScoreRow], align_result: AlignmentResult, silent: bool = False
 ) -> TxSelectResult:
     """Select appropriate human reference sequence for scoreset.
 
@@ -203,6 +307,7 @@ async def select_reference(
     * For protein scoresets, identify a matching RefSeq protein reference sequence.
 
     :param metadata: Scoreset metadata from MaveDB
+    :param records:
     :param align_result: alignment results
     :return:
     """
@@ -211,18 +316,19 @@ async def select_reference(
         click.echo(msg)
     _logger.info(msg)
 
-    if metadata.target_gene_category != TargetType.PROTEIN_CODING:
-        raise ValueError  # TODO
-
-    if metadata.target_sequence_type == TargetSequenceType.PROTEIN:
+    if metadata.target_gene_category == TargetType.PROTEIN_CODING:
         output = await _select_protein_reference(metadata, align_result)
-    elif metadata.target_sequence_type == TargetSequenceType.DNA:
-        raise ValueError  # TODO
+        if metadata.target_sequence_type == TargetSequenceType.DNA:
+            """
+            if urn == 'urn:mavedb:00000053-a-1' or urn == 'urn:mavedb:00000053-a-2':
+                # target sequence missing codon
+                continue
+            """
+            offset = _offset_target_sequence(metadata, records)
+
     else:
-        _logger.error(
-            f"Unknown target sequence type: {metadata.target_sequence_type} for {metadata.urn}"
-        )
-        raise ValueError
+        raise ValueError  # TODO regulatory/noncoding scoresets
+
 
     msg = "Reference selection complete."
     if not silent:

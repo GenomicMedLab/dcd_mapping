@@ -55,6 +55,8 @@ def _run_blat_command(command: str, args: Dict) -> subprocess.CompletedProcess:
 
     Perhaps `gget`? https://pachterlab.github.io/gget/en/blat.html
 
+    ``PxBlat``? https://github.com/ylab-hi/pxblat
+
     This function is broken out to enable mocking while testing.
 
     :param command: shell command to execute

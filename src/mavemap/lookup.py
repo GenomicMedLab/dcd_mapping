@@ -4,6 +4,7 @@ This module should contain methods that we don't want to think about caching.
 """
 import logging
 from typing import Dict, List, Optional
+from cool_seq_tool.schemas import TranscriptPriority
 
 import requests
 from cool_seq_tool.app import CoolSeqTool
@@ -138,7 +139,7 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
                 refseq_prot=result["RefSeq_prot"],
                 ensembl_nuc=result["Ensembl_nuc"],
                 ensembl_prot=result["Ensembl_prot"],
-                transcript_priority=result["MANE_status"],
+                transcript_priority=TranscriptPriority("_".join(result["MANE_status"].lower().split())),
                 grch38_chr=result["GRCh38_chr"],
                 chr_start=result["chr_start"],
                 chr_end=result["chr_end"],
@@ -228,8 +229,8 @@ def _get_normalized_gene_response(
 def _get_genomic_interval(
     extensions: List[Extension], src_name: str
 ) -> Optional[GeneLocation]:
-    """Extract start/end coords from extension list. Extensions in gene descriptors
-    can be of many different types, but we only want SequenceLocation data.
+    """Extract start/end coords from extension list. Extensions in normalized genes
+    can be of several different types, but we only want SequenceLocation data.
 
     :param extensions: extensions given in a descriptor
     :return: genomic interval if available
@@ -301,7 +302,7 @@ def get_chromosome_identifier(chromosome: str) -> str:
     if not result:
         raise KeyError
 
-    sorted_results = sorted(result)
+    sorted_results = sorted(result, key=lambda i: int(i.split(".")[-1]))
     return sorted_results[-1]
 
 
