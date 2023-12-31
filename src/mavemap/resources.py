@@ -4,7 +4,7 @@ This module is responsible for handling requests for MaveDB data, such as scores
 or scoreset metadata. It should also instantiate any external resources needed for
 tasks like transcript selection.
 
-Much of this can/should be replaced by the ``mavetools`` library.
+Much of this can/should be replaced by the ``mavetools`` library. (Or ``wags-tails``.)
 """
 import csv
 import logging
@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from tqdm import tqdm
 
 from mavemap.cache import LOCAL_STORE_PATH
-from mavemap.schemas import ScoreRow, ScoresetMetadata, UniProtRef
+from mavemap.schemas import ReferenceGenome, ScoreRow, ScoresetMetadata, UniProtRef
 
 _logger = logging.getLogger(__name__)
 
@@ -190,15 +190,15 @@ def get_scoreset_records(scoreset_urn: str, silent: bool = True) -> List[ScoreRo
 
 
 def get_ref_genome_file(
-    url: str = "https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.2bit",
+    build: ReferenceGenome = ReferenceGenome.HG38
 ) -> Path:
-    """Acquire reference genome file.
+    """Acquire reference genome file in 2bit format from UCSC.
 
-    :param url: URL to fetch reference file from. By default, points to the USCS-hosted
-        hg38 file in the 2bit file format.
+    :param build: genome build to acquire
     :return: path to acquired file
     :raise ResourceAcquisitionError: if unable to acquire file.
     """
+    url = f"https://hgdownload.cse.ucsc.edu/goldenpath/{build.value.lower()}/bigZips/{build.value.lower()}.2bit"
     parsed_url = urlparse(url)
     genome_file = LOCAL_STORE_PATH / os.path.basename(parsed_url.path)
     # this file shouldn't change, so no need to think about more advanced caching

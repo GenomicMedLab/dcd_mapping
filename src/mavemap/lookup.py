@@ -302,6 +302,7 @@ def get_chromosome_identifier(chromosome: str) -> str:
     if not result:
         raise KeyError
 
+    # make sure e.g. version .10 > version .9
     sorted_results = sorted(result, key=lambda i: int(i.split(".")[-1]))
     return sorted_results[-1]
 
@@ -384,10 +385,13 @@ def store_sequence(sequence: str, names: List[Dict]) -> None:
 # -------------------------------- VRS-Python -------------------------------- #
 
 
-def hgvs_to_vrs(hgvs: str) -> Allele:
+def hgvs_to_vrs(hgvs: str, alias_map: Dict) -> Allele:
     """Convert HGVS variation description to VRS object.
 
+    # TODO incorporate alias map
+
     :param hgvs: MAVE-HGVS variation string
+    :param alias_map: lookup for custom sequence IDs
     :return: Corresponding VRS allele as a Pydantic class
     """
     tr = VrsTranslatorBuilder()

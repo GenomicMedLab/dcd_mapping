@@ -76,15 +76,13 @@ def _get_blat_output(
     should be deleted by the process once complete. This happens manually, but we could
     probably add a decorator or a context manager for a bit more elegance.
 
-    # TODO make output object an arg???
-
     :param scoreset_metadata: object containing scoreset attributes
     :param query_file: Path to BLAT query file
     :param silent: suppress BLAT command output
     :return: BLAT query result
     :raise AlignmentError: if BLAT subprocess returns error code
     """
-    reference_genome_file = get_ref_genome_file()
+    reference_genome_file = get_ref_genome_file()  # TODO hg38 by default--what about earlier builds?
     out_file = get_mapping_tmp_dir() / "blat_out.psl"
 
     if scoreset_metadata.target_sequence_type == TargetSequenceType.PROTEIN:
@@ -135,6 +133,9 @@ def _get_best_hit(output: QueryResult, urn: str, chromosome: Optional[str]) -> H
     :raise AlignmentError: if unable to get hits from output
     """
     if chromosome:
+        if chromosome.startswith("refseq"):
+            chromosome = chromosome[7:]
+
         for hit in output:
             hit_chr = hit.id
             if hit_chr.startswith("chr"):

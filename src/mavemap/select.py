@@ -303,7 +303,7 @@ async def select_reference(
     """Select appropriate human reference sequence for scoreset.
 
     * Fairly trivial for regulatory/other noncoding scoresets which report genomic
-    variations. <- todo figure out where this code is
+    variations. <- TODO do we do anything at all for this?
     * For protein scoresets, identify a matching RefSeq protein reference sequence.
 
     :param metadata: Scoreset metadata from MaveDB
@@ -325,10 +325,10 @@ async def select_reference(
                 continue
             """
             offset = _offset_target_sequence(metadata, records)
+            # TODO update w/ offset
 
     else:
         raise ValueError  # TODO regulatory/noncoding scoresets
-
 
     msg = "Reference selection complete."
     if not silent:

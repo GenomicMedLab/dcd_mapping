@@ -23,6 +23,8 @@ class ReferenceGenome(str, Enum):
     """Define known reference genome names."""
 
     HG38 = "hg38"
+    HG19 = "hg19"
+    HG16 = "hg16"
 
 
 class TargetType(str, Enum):
