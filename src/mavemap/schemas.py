@@ -2,7 +2,8 @@
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel
+from cool_seq_tool.schemas import Strand, TranscriptPriority
+from pydantic import BaseModel, StrictBool, StrictInt
 
 
 class TargetGeneCategory(str, Enum):
@@ -50,7 +51,7 @@ class ScoresetMetadata(BaseModel):
 
 
 class ScoreRow(BaseModel):
-    """TODO"""
+    """Row from a MAVE score result"""
 
     hgvs_pro: str
     hgvs_nt: str
@@ -77,21 +78,13 @@ class AlignmentResult(BaseModel):
     """Structured BLAT alignment output."""
 
     chrom: str
-    strand: str
+    strand: Strand
     coverage: float
     ident_pct: float
     query_range: SequenceRange
     query_subranges: List[SequenceRange]
     hit_range: SequenceRange
     hit_subranges: List[SequenceRange]
-
-
-class TranscriptStatus(str, Enum):
-    """Define legal MANE statuses."""
-
-    SELECT = "MANE Select"
-    PLUS_CLINICAL = "MANE Plus Clinical"
-    LONGEST_COMPATIBLE = "Longest Compatible"
 
 
 class ManeData(BaseModel):
@@ -106,11 +99,22 @@ class ManeData(BaseModel):
     refseq_prot: str
     ensembl_nuc: str
     ensembl_prot: str
-    mane_status: TranscriptStatus
+    transcript_priority: TranscriptPriority
     grch38_chr: str
     chr_start: int
     chr_end: int
     chr_strand: str
+
+
+class TxSelectResult(BaseModel):
+    """Structured response object from transcript selection process."""
+
+    nm: Optional[str] = None
+    np: str
+    start: StrictInt
+    is_full_match: StrictBool
+    transcript_mode: Optional[TranscriptPriority] = None
+    sequence: str
 
 
 class HgvsTypePrefix(str, Enum):

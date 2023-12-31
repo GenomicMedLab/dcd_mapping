@@ -27,12 +27,12 @@ class ResourceAcquisitionError(Exception):
     """Raise when resource acquisition fails."""
 
 
-def _http_download(url: str, out_path: Path, show_progress: bool = False) -> Path:
+def _http_download(url: str, out_path: Path, silent: bool = True) -> Path:
     """Download a file via HTTP.
 
     :param url: location of file to retrieve
     :param out_path: location to save file to
-    :param show_progress: show TQDM progress bar if true
+    :param silent: show TQDM progress bar if true
     :return: Path if download successful
     :raise requests.HTTPError: if request is unsuccessful
     """
@@ -41,7 +41,7 @@ def _http_download(url: str, out_path: Path, show_progress: bool = False) -> Pat
         r.raise_for_status()
         total_size = int(r.headers.get("content-length", 0))
         with open(out_path, "wb") as h:
-            if show_progress:
+            if not silent:
                 with tqdm(
                     total=total_size,
                     unit="B",
@@ -135,16 +135,19 @@ def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
         _logger.error(f"Received HTTPError from {url}")
         raise ResourceAcquisitionError(f"Metadata for scoreset {scoreset_urn}")
     metadata = r.json()
+    if len(metadata["targetGenes"]) > 1:
+        raise ResourceAcquisitionError(
+            f"Multiple target genes for {scoreset_urn} -- look into this."
+        )
+    gene = metadata["targetGenes"][0]
     try:
         structured_data = ScoresetMetadata(
             urn=metadata["urn"],
-            target_gene_name=metadata["targetGene"]["name"],
-            target_gene_category=metadata["targetGene"]["category"],
-            target_sequence=metadata["targetGene"]["wtSequence"]["sequence"],
-            target_sequence_type=metadata["targetGene"]["wtSequence"]["sequenceType"],
-            target_reference_genome=metadata["targetGene"]["referenceMaps"][0][
-                "genome"
-            ]["shortName"],
+            target_gene_name=gene["name"],
+            target_gene_category=gene["category"],
+            target_sequence=gene["targetSequence"]["sequence"],
+            target_sequence_type=gene["targetSequence"]["sequenceType"],
+            target_reference_genome=gene["targetSequence"]["reference"]["shortName"],
             target_uniprot_ref=_get_uniprot_ref(metadata),
         )
     except (KeyError, ValidationError) as e:
@@ -156,7 +159,7 @@ def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
     return structured_data
 
 
-def get_scoreset_records(scoreset_urn: str) -> List[ScoreRow]:
+def get_scoreset_records(scoreset_urn: str, silent: bool = True) -> List[ScoreRow]:
     """Get scoreset records.
 
     Only hit the MaveDB API if unavailable locally. That means data must be refreshed
@@ -173,7 +176,7 @@ def get_scoreset_records(scoreset_urn: str) -> List[ScoreRow]:
     if not scores_csv.exists():
         url = f"https://api.mavedb.org/api/v1/score-sets/{scoreset_urn}/scores"
         try:
-            _http_download(url, scores_csv)
+            _http_download(url, scores_csv, silent)
         except requests.HTTPError:
             _logger.error(f"HTTPError when fetching scores CSV from {url}")
             raise ResourceAcquisitionError(f"Scores CSV for scoreset {scoreset_urn}")

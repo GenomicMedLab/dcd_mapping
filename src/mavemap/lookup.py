@@ -6,16 +6,11 @@ import logging
 from typing import Dict, List, Optional
 
 import requests
-from cool_seq_tool import CoolSeqTool
-from cool_seq_tool.data_sources.seqrepo_access import SeqRepoAccess
+from cool_seq_tool.app import CoolSeqTool
+from cool_seq_tool.handlers.seqrepo_access import SeqRepoAccess
+from ga4gh.core._internal.models import Extension, Gene
+from ga4gh.vrs._internal.models import Allele, SequenceLocation
 from ga4gh.vrs.extras.translator import Translator
-from ga4gh.vrsatile.pydantic.vrs_models import (
-    Allele,
-    Number,
-    SequenceInterval,
-    SequenceLocation,
-)
-from ga4gh.vrsatile.pydantic.vrsatile_models import Extension, GeneDescriptor
 from gene.database import create_db
 from gene.query import QueryHandler
 from gene.schemas import SourceName
@@ -36,8 +31,7 @@ class CoolSeqToolBuilder:
         :return: singleton instance of CoolSeqTool
         """
         if not hasattr(cls, "instance"):
-            q = QueryHandler(create_db())
-            cls.instance = CoolSeqTool(gene_query_handler=q)
+            cls.instance = CoolSeqTool()
         return cls.instance
 
 
@@ -47,9 +41,25 @@ def get_seqrepo() -> SeqRepoAccess:
     return cst.seqrepo_access
 
 
+class GeneNormalizerBuilder:
+    """Singleton constructor for Gene Normalizer instance."""
+
+    def __new__(cls) -> QueryHandler:
+        """Provide Gene Normalizer instance. Construct it if unavailable.
+
+        :return: singleton instance of ``QueryHandler`` for Gene Normalizer
+        """
+        if not hasattr(cls, "instance"):
+            db = create_db()
+            q = QueryHandler(db)
+            cls.instance = q
+        return cls.instance
+
+
 class VrsTranslatorBuilder:
     """Singleton constructor for VRS-Python translator instance."""
 
+    # TODO this looks.... very wrong?
     def __new__(cls) -> Translator:
         """Provide VRS-Python translator. Construct if unavailable.
 
@@ -128,7 +138,7 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
                 refseq_prot=result["RefSeq_prot"],
                 ensembl_nuc=result["Ensembl_nuc"],
                 ensembl_prot=result["Ensembl_prot"],
-                mane_status=result["MANE_status"],
+                transcript_priority=result["MANE_status"],
                 grch38_chr=result["GRCh38_chr"],
                 chr_start=result["chr_start"],
                 chr_end=result["chr_end"],
@@ -147,7 +157,7 @@ def _get_hgnc_symbol(term: str) -> Optional[str]:
     :param term: gene referent
     :return: gene symbol if available
     """
-    q = CoolSeqToolBuilder().gene_query_handler
+    q = GeneNormalizerBuilder()
     result = q.normalize_unmerged(term)
     hgnc = result.source_matches.get(SourceName.HGNC)
     if hgnc and len(hgnc.records) > 0:
@@ -178,27 +188,27 @@ def get_gene_symbol(metadata: ScoresetMetadata) -> Optional[str]:
         return _get_hgnc_symbol(parsed_name)
 
 
-def _normalize_gene(term: str) -> Optional[GeneDescriptor]:
+def _normalize_gene(term: str) -> Optional[Gene]:
     """Fetch normalizer response for gene term.
 
     :param term: gene name or referent to normalize
-    :return: GeneDescriptor if successful
+    :return: normalized Gene if successful
     """
-    q = CoolSeqToolBuilder().gene_query_handler
+    q = GeneNormalizerBuilder()
     response = q.normalize(term)
     if response.match_type > 0:
-        return response.gene_descriptor
+        return response.gene
     else:
         return None
 
 
 def _get_normalized_gene_response(
     metadata: ScoresetMetadata,
-) -> Optional[GeneDescriptor]:
+) -> Optional[Gene]:
     """Fetch best normalized concept given available scoreset metadata.
 
     :param metadata: salient scoreset metadata items
-    :return: Normalized gene descriptor if available
+    :return: Normalized gene if available
     """
     if metadata.target_uniprot_ref:
         gene_descriptor = _normalize_gene(metadata.target_uniprot_ref.id)
@@ -225,16 +235,18 @@ def _get_genomic_interval(
     :return: genomic interval if available
     """
     locations = [ext for ext in extensions if f"{src_name}_locations" in ext.name]
-    if locations and len(locations[0].value) > 0:
+    if locations and len(locations[0].value) > 0:  # type: ignore
         location_values = [
-            v for v in locations[0].value if v["type"] == "SequenceLocation"
+            v
+            for v in locations[0].value
+            if v["type"] == "SequenceLocation"  # type: ignore
         ]
         if location_values:
             return GeneLocation(
-                start=location_values[0]["interval"]["start"]["value"],
-                end=location_values[0]["interval"]["end"]["value"],
+                start=location_values[0]["start"],
+                end=location_values[0]["end"],
                 chromosome=get_chromosome_identifier_from_vrs_id(
-                    location_values[0]["sequence_id"]
+                    f"ga4gh:{location_values[0]['sequenceReference']['refgetAccession']}"
                 ),
             )
     return None
@@ -256,11 +268,11 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
     if not gene_descriptor or not gene_descriptor.extensions:
         return None
 
-    hgnc_locations = [
+    hgnc_locations: List[Extension] = [
         loc for loc in gene_descriptor.extensions if loc.name == "hgnc_locations"
     ]
-    if hgnc_locations and len(hgnc_locations[0].value) > 0:
-        return GeneLocation(chromosome=hgnc_locations[0].value[0].chr)
+    if hgnc_locations and len(hgnc_locations[0].value) > 0:  # type: ignore
+        return GeneLocation(chromosome=hgnc_locations[0].value[0].chr)  # type: ignore
 
     for src_name in ("ensembl", "ncbi"):
         loc = _get_genomic_interval(gene_descriptor.extensions, src_name)
@@ -383,9 +395,8 @@ def hgvs_to_vrs(hgvs: str) -> Allele:
 
     if (
         not isinstance(allele.location, SequenceLocation)
-        or not isinstance(allele.location.interval, SequenceInterval)
-        or not isinstance(allele.location.interval.start, Number)
-        or not isinstance(allele.location.interval.end, Number)
+        or not isinstance(allele.location.start, int)
+        or not isinstance(allele.location.end, int)
     ):
         raise ValueError
 

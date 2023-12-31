@@ -7,6 +7,8 @@ from typing import Any, Dict, Generator, Optional
 from Bio.SearchIO import HSP
 from Bio.SearchIO import read as read_blat
 from Bio.SearchIO._model import Hit, QueryResult
+from cool_seq_tool.schemas import Strand
+from gene.database.database import click
 
 from mavemap.lookup import get_chromosome_identifier, get_gene_location
 from mavemap.resources import get_mapping_tmp_dir, get_ref_genome_file
@@ -59,12 +61,12 @@ def _run_blat_command(command: str, args: Dict) -> subprocess.CompletedProcess:
     :param args: ``subprocess.run`` extra args (eg redirecting output for silent mode)
     :return: process result
     """
+    _logger.debug("Running BLAT command: %", command)
     return subprocess.run(command, shell=True, **args)
 
 
-# TODO make output object an arg???
 def _get_blat_output(
-    scoreset_metadata: ScoresetMetadata, query_file: Path, quiet: bool
+    scoreset_metadata: ScoresetMetadata, query_file: Path, silent: bool
 ) -> QueryResult:
     """Run a BLAT query and returns a path to the output object.
 
@@ -72,9 +74,11 @@ def _get_blat_output(
     should be deleted by the process once complete. This happens manually, but we could
     probably add a decorator or a context manager for a bit more elegance.
 
+    # TODO make output object an arg???
+
     :param scoreset_metadata: object containing scoreset attributes
     :param query_file: Path to BLAT query file
-    :param quiet: suppress BLAT command output
+    :param silent: suppress BLAT command output
     :return: BLAT query result
     :raise AlignmentError: if BLAT subprocess returns error code
     """
@@ -92,7 +96,7 @@ def _get_blat_output(
             f"Unknown target sequence type: {scoreset_metadata.target_sequence_type} for scoreset {scoreset_metadata.urn}"
         )
     command = f"blat {reference_genome_file} {target_commands} -minScore=20 {query_file} {out_file}"
-    if quiet:
+    if silent:
         kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.STDOUT}
     else:
         kwargs = {}
@@ -200,7 +204,7 @@ def _get_best_match(output: QueryResult, metadata: ScoresetMetadata) -> Alignmen
     best_hit = _get_best_hit(output, metadata.urn, chromosome)
     best_hsp = _get_best_hsp(best_hit, metadata.urn, location)
 
-    strand = best_hsp[0].query_strand
+    strand = Strand(best_hsp[0].query_strand)
     coverage = 100 * (best_hsp.query_end - best_hsp.query_start) / output.seq_len  # type: ignore
     identity = best_hsp.ident_pct  # type: ignore
     chrom = best_hsp.hit_id
@@ -228,15 +232,23 @@ def _get_best_match(output: QueryResult, metadata: ScoresetMetadata) -> Alignmen
     return result
 
 
-def align(scoreset_metadata: ScoresetMetadata, quiet: bool = True) -> AlignmentResult:
+def align(scoreset_metadata: ScoresetMetadata, silent: bool = True) -> AlignmentResult:
     """Align target sequence to a reference genome.
 
     :param scoreset_metadata: object containing scoreset metadata
     :param quiet: suppress BLAT process output if true
     :return: data wrapper containing alignment results
     """
+    msg = f"Initiating alignment on {scoreset_metadata.urn}"
+    if not silent:
+        click.echo(msg)
+    _logger.info(msg)
     query_file = next(_build_query_file(scoreset_metadata))
-    blat_output = _get_blat_output(scoreset_metadata, query_file, quiet)
+    blat_output = _get_blat_output(scoreset_metadata, query_file, silent)
 
     match = _get_best_match(blat_output, scoreset_metadata)
+    msg = "Alignment complete."
+    if not silent:
+        click.echo(msg)
+    _logger.info(msg)
     return match

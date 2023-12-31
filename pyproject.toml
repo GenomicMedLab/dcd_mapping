@@ -31,10 +31,9 @@ dependencies = [
     "biopython",
     "tqdm",
     "click",
-    "cool-seq-tool==0.1.14-dev1",  # temporary pin
-    "gene-normalizer==0.1.40-dev0",  # temporary pin
-    "ga4gh.vrsatile.pydantic==0.0.13",  # temporary pin
-    "pydantic",
+    "cool-seq-tool>=0.4.0.dev0",
+    "gene-normalizer>=0.3.0-dev1",
+    "pydantic>=2",
     "fastapi",
     "python-dotenv",
 ]
@@ -72,7 +71,6 @@ branch = true
 
 [tool.ruff]
 src = ["src"]
-exclude = ["vrs_map.py"]  # in progress
 # pycodestyle (E, W)
 # Pyflakes (F)
 # flake8-annotations (ANN)

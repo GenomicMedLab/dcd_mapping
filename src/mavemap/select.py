@@ -1,8 +1,10 @@
 """Select best reference sequence."""
 import logging
-from typing import Dict, List
+from typing import List
 
 from Bio.Seq import Seq
+from cool_seq_tool.schemas import TranscriptPriority
+from gene.database.database import click
 
 from mavemap.lookup import (
     get_chromosome_identifier,
@@ -10,6 +12,7 @@ from mavemap.lookup import (
     get_mane_transcripts,
     get_sequence,
     get_transcripts,
+    get_uniprot_sequence,
 )
 from mavemap.schemas import (
     AlignmentResult,
@@ -17,7 +20,7 @@ from mavemap.schemas import (
     ScoresetMetadata,
     TargetSequenceType,
     TargetType,
-    TranscriptStatus,
+    TxSelectResult,
 )
 
 _logger = logging.getLogger(__name__)
@@ -75,13 +78,47 @@ def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeD
     :return: best transcript
     """
     if len(mane_transcripts) == 2:
-        if mane_transcripts[0].mane_status == TranscriptStatus.SELECT:
+        if mane_transcripts[0].transcript_priority == TranscriptPriority.MANE_SELECT:
             return mane_transcripts[0]
         else:
             return mane_transcripts[1]
     elif len(mane_transcripts) == 1:
         return mane_transcripts[0]
     else:
+        # TODO pretty sure here's where we need to handle the stuff at the end of this
+        # code block fetching protein accessions
+        """
+        trans_lens = []
+        for i in range(len(isect)):
+            trans_lens.append(len(str(sr[isect[i]])))
+        loc = trans_lens.index(max(trans_lens))
+        nm = isect[loc]
+
+        testquery = f"SELECT pro_ac FROM uta_20210129.associated_accessions WHERE tx_ac = '{nm}'"
+        async def np():
+            out = await utadb.execute_query(testquery)
+            try:
+                return out[0]['pro_ac']
+            except:
+                return out
+        np = asyncio.run(np())
+
+        if np != []:
+            oseq = dat.at[j, 'target_sequence']
+
+            if len(set(str(oseq))) > 4:
+                stri = str(oseq)
+            else:
+                oseq = Seq(oseq)
+                stri = str(oseq.translate(table=1)).replace('*', '')
+
+            if str(sr[np]).find(stri) != -1:
+                full_match = True
+            else:
+                full_match = False
+            start = str(sr[np]).find(stri[:10])
+            mappings_dict[dat.at[j,'urn']] = [np, start, dat.at[j, 'urn'], full_match, nm, 'Longest Compatible']
+        """
         _logger.error(
             f"Unexpected number of MANE transcripts: {len(mane_transcripts)}, urn: {urn}"
         )
@@ -109,56 +146,85 @@ def _get_protein_sequence(target_sequence: str) -> str:
 
 async def _select_protein_reference(
     metadata: ScoresetMetadata, align_result: AlignmentResult
-) -> Dict:
-    """TODO -- return type is WIP
+) -> TxSelectResult:
+    """Select preferred transcript for protein reference sequence
 
     :param metadata: Scoreset metadata from MaveDB
     :param align_result: alignment results
-    :return: TODO
+    :return: Best transcript and associated metadata
     """
     matching_transcripts = await _get_compatible_transcripts(metadata, align_result)
     common_transcripts = _reduce_compatible_transcripts(matching_transcripts)
-    # TODO if this fails, look up transcripts on uniprot?
-
-    mane_transcripts = get_mane_transcripts(common_transcripts)
-    best_tx = _choose_best_transcript(mane_transcripts, metadata.urn)
+    if not common_transcripts:
+        if not metadata.target_uniprot_ref:
+            raise TxSelectError(
+                f"Unable to find matching transcripts for {metadata.urn}"
+            )
+        protein_sequence = get_uniprot_sequence(metadata.target_uniprot_ref.id)
+        np_accession = metadata.target_uniprot_ref.id
+        ref_sequence = get_uniprot_sequence(metadata.target_uniprot_ref.id)
+        if not ref_sequence:
+            raise ValueError(
+                f"Unable to grab reference sequence from uniprot.org for {metadata.urn}"
+            )
+        nm_accession = None
+        tx_mode = None
+    else:
+        mane_transcripts = get_mane_transcripts(common_transcripts)
+        best_tx = _choose_best_transcript(mane_transcripts, metadata.urn)
+        ref_sequence = get_sequence(best_tx.refseq_prot)
+        nm_accession = best_tx.refseq_nuc
+        np_accession = best_tx.refseq_prot
+        tx_mode = best_tx.transcript_priority
 
     protein_sequence = _get_protein_sequence(metadata.target_sequence)
-
-    ref_sequence = get_sequence(best_tx.refseq_prot)
+    # TODO -- look at these two lines
     is_full_match = ref_sequence.find(protein_sequence) != -1
-    start = ref_sequence.find(protein_sequence[:10])  # TODO seems potentially sus?
-    protein_mapping_info = {
-        "nm": best_tx.refseq_nuc,
-        "np": best_tx.refseq_prot,
-        "start": start,
-        "is_full_match": is_full_match,
-        "protein_sequence": protein_sequence,
-        "transcript_mode": best_tx.mane_status,  # TODO return to this
-    }
+    start = ref_sequence.find(protein_sequence[:10])
+
+    protein_mapping_info = TxSelectResult(
+        nm=nm_accession,
+        np=np_accession,
+        start=start,
+        is_full_match=is_full_match,
+        sequence=protein_sequence,
+        transcript_mode=tx_mode,
+    )
     return protein_mapping_info
 
 
 async def select_reference(
-    metadata: ScoresetMetadata, align_result: AlignmentResult
-) -> Dict:
+    metadata: ScoresetMetadata, align_result: AlignmentResult, silent: bool = False
+) -> TxSelectResult:
     """Select appropriate human reference sequence for scoreset.
 
     * Fairly trivial for regulatory/other noncoding scoresets which report genomic
-    variations.
+    variations. <- todo figure out where this code is
     * For protein scoresets, identify a matching RefSeq protein reference sequence.
-    * More description here TODO.
-    * Return type unclear
 
     :param metadata: Scoreset metadata from MaveDB
     :param align_result: alignment results
-    :return: TODO
+    :return:
     """
+    msg = f"Selecting reference sequence for {metadata.urn}..."
+    if not silent:
+        click.echo(msg)
+    _logger.info(msg)
+
     if metadata.target_gene_category != TargetType.PROTEIN_CODING:
         raise ValueError  # TODO
+
     if metadata.target_sequence_type == TargetSequenceType.PROTEIN:
-        return await _select_protein_reference(metadata, align_result)
+        output = await _select_protein_reference(metadata, align_result)
     elif metadata.target_sequence_type == TargetSequenceType.DNA:
-        return {}  # TODO ??
-    else:
         raise ValueError  # TODO
+    else:
+        _logger.error(
+            f"Unknown target sequence type: {metadata.target_sequence_type} for {metadata.urn}"
+        )
+        raise ValueError
+
+    msg = "Reference selection complete."
+    if not silent:
+        click.echo(msg)
+    return output
