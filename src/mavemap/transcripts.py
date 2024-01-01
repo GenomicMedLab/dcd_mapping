@@ -1,6 +1,6 @@
 """Select best reference sequence."""
 import logging
-from typing import List
+from typing import List, Optional
 
 from Bio.Seq import Seq
 from cool_seq_tool.schemas import TranscriptPriority
@@ -82,6 +82,7 @@ def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeD
         if mane_transcripts[0].transcript_priority == TranscriptPriority.MANE_SELECT:
             return mane_transcripts[0]
         else:
+            # TODO double check
             return mane_transcripts[1]
     elif len(mane_transcripts) == 1:
         return mane_transcripts[0]
@@ -201,7 +202,9 @@ async def _select_protein_reference(
 
 def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow]) -> int:
     """TODO
+    """
 
+    """
     # Find start location in provided target sequence when start position is not first position of sequence
     import operator
     offset_within_ts = {}
@@ -294,16 +297,16 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
         mappings_dict[key][1] = offset_within_ts[key]
     """
 
-    return 0  # TODO
+    raise NotImplementedError
 
 
 async def select_reference(
     metadata: ScoresetMetadata, records: List[ScoreRow], align_result: AlignmentResult, silent: bool = False
-) -> TxSelectResult:
+) -> Optional[TxSelectResult]:
     """Select appropriate human reference sequence for scoreset.
 
     * Fairly trivial for regulatory/other noncoding scoresets which report genomic
-    variations. <- TODO do we do anything at all for this?
+    variations. <- TODO do we do anything at all for this? Currently just returning None
     * For protein scoresets, identify a matching RefSeq protein reference sequence.
 
     :param metadata: Scoreset metadata from MaveDB
@@ -319,16 +322,16 @@ async def select_reference(
     if metadata.target_gene_category == TargetType.PROTEIN_CODING:
         output = await _select_protein_reference(metadata, align_result)
         if metadata.target_sequence_type == TargetSequenceType.DNA:
-            """
-            if urn == 'urn:mavedb:00000053-a-1' or urn == 'urn:mavedb:00000053-a-2':
+            if metadata.urn == 'urn:mavedb:00000053-a-1' or metadata.urn == 'urn:mavedb:00000053-a-2':
                 # target sequence missing codon
-                continue
-            """
+                return None
             offset = _offset_target_sequence(metadata, records)
             # TODO update w/ offset
 
     else:
-        raise ValueError  # TODO regulatory/noncoding scoresets
+        # TODO regulatory/noncoding scoresets
+        # anything needed here?
+        return None
 
     msg = "Reference selection complete."
     if not silent:

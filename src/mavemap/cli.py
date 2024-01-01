@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 
 @click.command(no_args_is_help=True)
 @click.argument("urn", nargs=1)
-async def cli(urn: str) -> None:
+def cli(urn: str) -> None:
     """Process user commands and call core `map_scoreset()` function.
 
     For example:
@@ -23,8 +23,8 @@ async def cli(urn: str) -> None:
     """  # noqa: D301
     logging.basicConfig(filename="mavemap.log", level=logging.INFO, force=True)
     _logger.setLevel(logging.INFO)
-    await map_scoreset_urn(urn, silent=False)
+    asyncio.run(map_scoreset_urn(urn, silent=False))
 
 
 if __name__ == "__main__":
-    asyncio.run(cli())
+    cli()

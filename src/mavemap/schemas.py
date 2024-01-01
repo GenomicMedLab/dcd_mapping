@@ -1,25 +1,19 @@
 """Provide class definitions for commonly-used information objects."""
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import List, Optional
 
 from cool_seq_tool.schemas import Strand, TranscriptPriority
 from pydantic import BaseModel, StrictBool, StrictInt
 
 
-class TargetGeneCategory(str, Enum):
-    """Define target gene category options. Add more definitions as needed."""
-
-    PROTEIN_CODING = "Protein coding"
-
-
-class TargetSequenceType(str, Enum):
+class TargetSequenceType(StrEnum):
     """Define target sequence type. Add more definitions as needed."""
 
     PROTEIN = "protein"
     DNA = "dna"
 
 
-class ReferenceGenome(str, Enum):
+class ReferenceGenome(StrEnum):
     """Define known reference genome names."""
 
     HG38 = "hg38"
@@ -27,10 +21,12 @@ class ReferenceGenome(str, Enum):
     HG16 = "hg16"
 
 
-class TargetType(str, Enum):
+class TargetType(StrEnum):
     """Define target gene types."""
 
     PROTEIN_CODING = "Protein coding"
+    REGULATORY = "Regulatory"
+    OTHER_NC = "Other noncoding"
 
 
 class UniProtRef(BaseModel):
@@ -77,7 +73,7 @@ class GeneLocation(BaseModel):
 
 
 class AlignmentResult(BaseModel):
-    """Structured BLAT alignment output."""
+    """Define BLAT alignment output."""
 
     chrom: str
     strand: Strand
@@ -109,7 +105,7 @@ class ManeData(BaseModel):
 
 
 class TxSelectResult(BaseModel):
-    """Structured response object from transcript selection process."""
+    """Define response object from transcript selection process."""
 
     nm: Optional[str] = None
     np: str
@@ -117,10 +113,3 @@ class TxSelectResult(BaseModel):
     is_full_match: StrictBool
     transcript_mode: Optional[TranscriptPriority] = None
     sequence: str
-
-
-class HgvsTypePrefix(str, Enum):
-    """Define HGVS sequence type prefixes."""
-
-    PROTEIN = "p"
-    LINEAR_GENOMIC = "g"

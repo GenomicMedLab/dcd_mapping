@@ -242,7 +242,7 @@ def align(scoreset_metadata: ScoresetMetadata, silent: bool = True) -> Alignment
     :param quiet: suppress BLAT process output if true
     :return: data wrapper containing alignment results
     """
-    msg = f"Initiating alignment on {scoreset_metadata.urn}"
+    msg = f"Initiating alignment for {scoreset_metadata.urn}..."
     if not silent:
         click.echo(msg)
     _logger.info(msg)

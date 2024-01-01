@@ -411,21 +411,6 @@ def hgvs_to_vrs(hgvs: str, alias_map: Dict) -> Allele:
 # ---------------------------------- Misc. ---------------------------------- #
 
 
-def get_clingen_id(hgvs: str) -> Optional[str]:
-    """Fetch ClinGen ID. TODO finish this.
-
-    :param hgvs: HGVS ID todo ??
-    :return: ClinGen ID if available
-    :raise HTTPError: if request encounters an error
-    """
-    url = f"https://reg.genome.network/allele?hgvs={hgvs}"
-    response = requests.get(url)
-    response.raise_for_status()
-    page = response.json()
-    page = page["@id"]
-    return page.split("/")[4]
-
-
 def get_uniprot_sequence(uniprot_id: str) -> Optional[str]:
     """Get sequence directly from UniProt.
 
