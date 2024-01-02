@@ -4,11 +4,11 @@ This module should contain methods that we don't want to think about caching.
 """
 import logging
 from typing import Dict, List, Optional
-from cool_seq_tool.schemas import TranscriptPriority
 
 import requests
 from cool_seq_tool.app import CoolSeqTool
 from cool_seq_tool.handlers.seqrepo_access import SeqRepoAccess
+from cool_seq_tool.schemas import TranscriptPriority
 from ga4gh.core._internal.models import Extension, Gene
 from ga4gh.vrs._internal.models import Allele, SequenceLocation
 from ga4gh.vrs.extras.translator import Translator
@@ -139,7 +139,9 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
                 refseq_prot=result["RefSeq_prot"],
                 ensembl_nuc=result["Ensembl_nuc"],
                 ensembl_prot=result["Ensembl_prot"],
-                transcript_priority=TranscriptPriority("_".join(result["MANE_status"].lower().split())),
+                transcript_priority=TranscriptPriority(
+                    "_".join(result["MANE_status"].lower().split())
+                ),
                 grch38_chr=result["GRCh38_chr"],
                 chr_start=result["chr_start"],
                 chr_end=result["chr_end"],

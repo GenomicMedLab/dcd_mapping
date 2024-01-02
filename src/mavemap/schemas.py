@@ -1,5 +1,5 @@
 """Provide class definitions for commonly-used information objects."""
-from enum import Enum, StrEnum
+from enum import StrEnum
 from typing import List, Optional
 
 from cool_seq_tool.schemas import Strand, TranscriptPriority

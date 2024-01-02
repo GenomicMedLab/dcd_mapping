@@ -201,9 +201,12 @@ async def _select_protein_reference(
 
 
 def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow]) -> int:
-    """TODO
-    """
+    """Find start location in target sequence (it's not always 0)
 
+    :param metadata:
+    :param records:
+    :return: starting index position (may be 0)
+    """
     """
     # Find start location in provided target sequence when start position is not first position of sequence
     import operator
@@ -296,12 +299,14 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
     for key in offset_within_ts:
         mappings_dict[key][1] = offset_within_ts[key]
     """
-
     raise NotImplementedError
 
 
 async def select_reference(
-    metadata: ScoresetMetadata, records: List[ScoreRow], align_result: AlignmentResult, silent: bool = False
+    metadata: ScoresetMetadata,
+    records: List[ScoreRow],
+    align_result: AlignmentResult,
+    silent: bool = False,
 ) -> Optional[TxSelectResult]:
     """Select appropriate human reference sequence for scoreset.
 
@@ -322,10 +327,13 @@ async def select_reference(
     if metadata.target_gene_category == TargetType.PROTEIN_CODING:
         output = await _select_protein_reference(metadata, align_result)
         if metadata.target_sequence_type == TargetSequenceType.DNA:
-            if metadata.urn == 'urn:mavedb:00000053-a-1' or metadata.urn == 'urn:mavedb:00000053-a-2':
+            if (
+                metadata.urn == "urn:mavedb:00000053-a-1"
+                or metadata.urn == "urn:mavedb:00000053-a-2"
+            ):
                 # target sequence missing codon
                 return None
-            offset = _offset_target_sequence(metadata, records)
+            _ = _offset_target_sequence(metadata, records)
             # TODO update w/ offset
 
     else:
