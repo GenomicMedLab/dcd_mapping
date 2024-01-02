@@ -1,6 +1,7 @@
 """Align MaveDB target sequences to a human reference genome."""
 import logging
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Generator, Optional
 
@@ -37,7 +38,10 @@ def _build_query_file(scoreset_metadata: ScoresetMetadata) -> Generator[Path, An
     :param scoreset_metadata: MaveDB scoreset metadata object
     :return: Yielded Path to constructed file. Deletes file once complete.
     """
-    query_file = get_mapping_tmp_dir() / "blat_query.fa"
+    query_file = (
+        get_mapping_tmp_dir() / f"blat_query_{scoreset_metadata.urn}_{uuid.uuid1()}.fa"
+    )
+    _logger.debug("Writing BLAT query to %", query_file)
     with open(query_file, "w") as f:
         f.write(">" + "query" + "\n")
         f.write(scoreset_metadata.target_sequence + "\n")
@@ -49,15 +53,14 @@ def _build_query_file(scoreset_metadata: ScoresetMetadata) -> Generator[Path, An
 def _run_blat_command(command: str, args: Dict) -> subprocess.CompletedProcess:
     """Execute BLAT binary with relevant params.
 
+    This function is broken out to enable mocking while testing.
+
     Currently, we rely on a system-installed BLAT binary accessible in the containing
     environment's PATH. This is sort of awkward and it'd be nice to make use of some
     direct bindings or better packaging if that's possible.
 
-    Perhaps `gget`? https://pachterlab.github.io/gget/en/blat.html
-
-    ``PxBlat``? https://github.com/ylab-hi/pxblat
-
-    This function is broken out to enable mocking while testing.
+    * Perhaps `gget`? https://pachterlab.github.io/gget/en/blat.html
+    * ``PxBlat``? https://github.com/ylab-hi/pxblat
 
     :param command: shell command to execute
     :param args: ``subprocess.run`` extra args (eg redirecting output for silent mode)
@@ -82,7 +85,9 @@ def _get_blat_output(
     :return: BLAT query result
     :raise AlignmentError: if BLAT subprocess returns error code
     """
-    reference_genome_file = get_ref_genome_file()  # TODO hg38 by default--what about earlier builds?
+    reference_genome_file = (
+        get_ref_genome_file()
+    )  # TODO hg38 by default--what about earlier builds?
     out_file = get_mapping_tmp_dir() / "blat_out.psl"
 
     if scoreset_metadata.target_sequence_type == TargetSequenceType.PROTEIN:
@@ -207,7 +212,7 @@ def _get_best_match(output: QueryResult, metadata: ScoresetMetadata) -> Alignmen
     best_hit = _get_best_hit(output, metadata.urn, chromosome)
     best_hsp = _get_best_hsp(best_hit, metadata.urn, location)
 
-    strand = Strand(best_hsp[0].query_strand)
+    strand = Strand.POSITIVE if best_hsp[0].query_strand == 1 else Strand.NEGATIVE
     coverage = 100 * (best_hsp.query_end - best_hsp.query_start) / output.seq_len  # type: ignore
     identity = best_hsp.ident_pct  # type: ignore
     chrom = best_hsp.hit_id
@@ -242,7 +247,7 @@ def align(scoreset_metadata: ScoresetMetadata, silent: bool = True) -> Alignment
     :param quiet: suppress BLAT process output if true
     :return: data wrapper containing alignment results
     """
-    msg = f"Initiating alignment for {scoreset_metadata.urn}..."
+    msg = f"Performing alignment for {scoreset_metadata.urn}..."
     if not silent:
         click.echo(msg)
     _logger.info(msg)

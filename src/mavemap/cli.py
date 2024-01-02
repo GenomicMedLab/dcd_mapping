@@ -11,7 +11,15 @@ _logger = logging.getLogger(__name__)
 
 @click.command(no_args_is_help=True)
 @click.argument("urn", nargs=1)
-def cli(urn: str) -> None:
+@click.option(
+    "--debug",
+    "-d",
+    is_flag=True,
+    show_default=True,
+    default=False,
+    help="Enable debug logging",
+)
+def cli(urn: str, debug: bool) -> None:
     """Process user commands and call core `map_scoreset()` function.
 
     For example:
@@ -20,9 +28,13 @@ def cli(urn: str) -> None:
 
     \f
     :param urn: scoreset URN
+    :param debug: if True, enable debug logging
     """  # noqa: D301
     logging.basicConfig(filename="mavemap.log", level=logging.INFO, force=True)
-    _logger.setLevel(logging.INFO)
+    if debug:
+        _logger.setLevel(logging.DEBUG)
+    else:
+        _logger.setLevel(logging.INFO)
     asyncio.run(map_scoreset_urn(urn, silent=False))
 
 

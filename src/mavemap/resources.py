@@ -107,7 +107,7 @@ def _get_uniprot_ref(scoreset_json: Dict[str, Any]) -> Optional[UniProtRef]:
     :param scoreset_json: parsed JSON from scoresets API
     :return: UniProt ID if available
     """
-    ext_ids = scoreset_json.get("externalIdentifiers")
+    ext_ids = scoreset_json["targetGenes"][0].get("externalIdentifiers")
     if not ext_ids:
         return None
     for ext_id in ext_ids:
@@ -189,9 +189,7 @@ def get_scoreset_records(scoreset_urn: str, silent: bool = True) -> List[ScoreRo
     return scores_data
 
 
-def get_ref_genome_file(
-    build: ReferenceGenome = ReferenceGenome.HG38
-) -> Path:
+def get_ref_genome_file(build: ReferenceGenome = ReferenceGenome.HG38) -> Path:
     """Acquire reference genome file in 2bit format from UCSC.
 
     :param build: genome build to acquire

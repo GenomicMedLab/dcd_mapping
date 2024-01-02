@@ -42,7 +42,7 @@ dependencies = [
 dcd-map = "mavemap.cli:cli"
 
 [project.optional-dependencies]
-test = [
+tests = [
     "pytest",
     "pytest-mock",
     "pytest-cov"
