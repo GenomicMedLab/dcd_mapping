@@ -17,24 +17,24 @@ def align_result_fixture():
             chrom="chr20",
             strand=Strand.POSITIVE,
             coverage=100.0,
-            ident_pct=0,  # TODO
+            ident_pct=99.86666666666666,
             query_range=SequenceRange(start=0, end=750),
             query_subranges=[
-                # TODO this looks wrong
                 SequenceRange(start=0, end=52),
-                SequenceRange(start=0, end=52),
-                SequenceRange(start=0, end=52),
-                SequenceRange(start=0, end=52),
-                SequenceRange(start=0, end=52),
+                SequenceRange(start=52, end=232),
+                SequenceRange(start=232, end=309),
+                SequenceRange(start=309, end=463),
+                SequenceRange(start=463, end=595),
+                SequenceRange(start=595, end=750),
             ],
             hit_range=SequenceRange(start=37397802, end=37403325),
             hit_subranges=[
-                # TODO this looks wrong
                 SequenceRange(start=37397802, end=37397854),
-                SequenceRange(start=37397802, end=37397854),
-                SequenceRange(start=37397802, end=37397854),
-                SequenceRange(start=37397802, end=37397854),
-                SequenceRange(start=37397802, end=37397854),
+                SequenceRange(start=37400114, end=37400294),
+                SequenceRange(start=37401601, end=37401678),
+                SequenceRange(start=37402434, end=37402588),
+                SequenceRange(start=37402748, end=37402880),
+                SequenceRange(start=37403170, end=37403325),
             ],
         ),
         "urn:mavedb:00000098-a-1": AlignmentResult(
@@ -92,7 +92,7 @@ def align_result_fixture():
     }
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_tx_src(
     scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
     align_result_fixture: Dict[str, AlignmentResult],
@@ -113,7 +113,7 @@ async def test_tx_src(
     assert actual.transcript_mode == TranscriptPriority.MANE_SELECT
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_tx_scn5a(
     scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
     align_result_fixture: Dict[str, AlignmentResult],
@@ -134,7 +134,7 @@ async def test_tx_scn5a(
     assert actual.transcript_mode == TranscriptPriority.MANE_PLUS_CLINICAL
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_tx_hbb(
     scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
     align_result_fixture: Dict[str, AlignmentResult],
@@ -149,7 +149,7 @@ async def test_tx_hbb(
     assert actual is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_tx_app(
     scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
     align_result_fixture: Dict[str, AlignmentResult],
@@ -164,7 +164,7 @@ async def test_tx_app(
     assert actual is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="module")
 async def test_tx_raf(
     scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
     align_result_fixture: Dict[str, AlignmentResult],
