@@ -57,7 +57,7 @@ def _reduce_compatible_transcripts(matching_transcripts: List[List[str]]) -> Lis
     """Reduce list of list of transcripts to a list containing only entries present
     in each sublist
 
-    :param tx_subranges_list: list of list of transcript accession IDs
+    :param matching_transcripts: list of list of transcript accession IDs
     :return: list of transcripts shared by all sublists
     """
     common_transcripts_set = set(matching_transcripts[0])
@@ -82,7 +82,7 @@ def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeD
         if mane_transcripts[0].transcript_priority == TranscriptPriority.MANE_SELECT:
             return mane_transcripts[0]
         else:
-            # TODO double check
+            # TODO double check... should be sorted?
             return mane_transcripts[1]
     elif len(mane_transcripts) == 1:
         return mane_transcripts[0]
@@ -130,13 +130,13 @@ def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeD
 def _get_protein_sequence(target_sequence: str) -> str:
     """Get protein sequence if necessary.
 
+    It'd be nice if there was a more elegant way to check if the sequence was already a
+    protein sequence.
+
     :param target_sequence: sequence set as baseline in MAVE experiment (might already
         be set to protein)
     :return: resulting protein sequence
     """
-    # TODO there's a thing here about taking the sequence as-is if it contains
-    # more than four unique chars, that seems off
-    # Check specific chars used instead?
     if len(set(target_sequence)) > 4:
         protein_sequence = target_sequence
     else:

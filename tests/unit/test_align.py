@@ -5,29 +5,10 @@ Todo:
 * Mock the BLAT call/result file
 
 """
-import json
-from pathlib import Path
-
 import pytest
 from cool_seq_tool.schemas import Strand
 
 from mavemap.align import align
-from mavemap.schemas import ScoresetMetadata
-
-
-@pytest.fixture(scope="module")
-def scoreset_metadata_fixture():
-    """Provide scoreset metadata fixtures."""
-    fixture_file = (
-        Path(__file__).parents[1].resolve() / "fixtures" / "scoreset_metadata.json"
-    )
-    with open(fixture_file, "r") as f:
-        data = json.load(f)
-    results = {}
-    for d in data["scoreset_metadata"]:
-        formatted_data = ScoresetMetadata(**d)
-        results[formatted_data.urn] = formatted_data
-    return results
 
 
 def test_align_src_catalytic_domain(scoreset_metadata_fixture):
@@ -38,6 +19,7 @@ def test_align_src_catalytic_domain(scoreset_metadata_fixture):
     assert align_result.chrom == "chr20"
     assert align_result.strand == Strand.POSITIVE
     assert align_result.coverage == pytest.approx(100.0)
+    assert align_result.ident_pct == pytest.approx(99.86)
     assert align_result.query_range.start == 0
     assert align_result.query_range.end == 750
     query_subranges = [
@@ -74,6 +56,7 @@ def test_align_hbb(scoreset_metadata_fixture):
     assert align_result.chrom == "chr11"
     assert align_result.strand == Strand.POSITIVE
     assert align_result.coverage == pytest.approx(100.0)
+    assert align_result.ident_pct == 0  # TODO
     assert align_result.query_range.start == 0
     assert align_result.query_range.end == 187
     query_subranges = [[0, 187]]
@@ -96,19 +79,16 @@ def test_align_scn5a(scoreset_metadata_fixture):
     assert align_result.chrom == "chr3"
     assert align_result.strand == Strand.NEGATIVE
     assert align_result.coverage == pytest.approx(100.0)
+    assert align_result.ident_pct == pytest.approx(100.0)
     assert align_result.query_range.start == 0
     assert align_result.query_range.end == 12
-    query_subranges = [
-        # TODO
-    ]
+    query_subranges = [[0, 12]]
     for actual, expected in zip(align_result.query_subranges, query_subranges):
         assert actual.start == expected[0]
         assert actual.end == expected[1]
     assert align_result.hit_range.start == 38551475
     assert align_result.hit_range.end == 38551511
-    hit_subranges = [
-        # TODO
-    ]
+    hit_subranges = [[38551475, 38551511]]
     for actual, expected in zip(align_result.hit_subranges, hit_subranges):
         assert actual.start == expected[0]
         assert actual.end == expected[1]
