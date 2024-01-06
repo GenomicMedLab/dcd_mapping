@@ -1,8 +1,11 @@
 """Select best reference sequence."""
 import logging
+import re
 from typing import List, Optional
 
+from Bio.Data.CodonTable import IUPACData
 from Bio.Seq import Seq
+from Bio.SeqUtils import seq1
 from cool_seq_tool.schemas import TranscriptPriority
 from gene.database.database import click
 
@@ -82,7 +85,12 @@ def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeD
         if mane_transcripts[0].transcript_priority == TranscriptPriority.MANE_SELECT:
             return mane_transcripts[0]
         else:
-            # TODO double check... should be sorted?
+            _logger.warning(
+                "Unexpected transcript priority return for %s: %s",
+                urn,
+                mane_transcripts,
+            )
+            breakpoint()  # TODO want to take a look at this when it comes up
             return mane_transcripts[1]
     elif len(mane_transcripts) == 1:
         return mane_transcripts[0]
@@ -124,7 +132,7 @@ def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeD
         _logger.error(
             f"Unexpected number of MANE transcripts: {len(mane_transcripts)}, urn: {urn}"
         )
-        raise TxSelectError
+        raise NotImplementedError
 
 
 def _get_protein_sequence(target_sequence: str) -> str:
@@ -207,95 +215,65 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
     :param records:
     :return: starting index position (may be 0)
     """
+    if not isinstance(records[0].hgvs_pro, str) or records[0].hgvs_pro.startswith("NP"):
+        return 0  # TODO explain?
+    protein_change_list = [rec.hgvs_pro.lstrip("p.") for rec in records]
+
+    aa_dict = {}  # TODO name?
+    for protein_change in protein_change_list:
+        if protein_change == "_sy" or protein_change == "_wt":
+            raise ValueError
+        if ";" in protein_change:
+            protein_changes = protein_change[1:-1].split(";")
+        else:
+            protein_changes = [protein_change]
+        for change in protein_changes:
+            aa = change[:3]
+            if aa == "=" or change[-3:] not in IUPACData.protein_letters_3to1:
+                continue
+            if "=" in change:
+                loc = change[3:-1]
+            else:
+                loc = change[3:-3]
+            if loc not in aa_dict:
+                loc = re.sub("[^0-9]", "", loc)
+                if loc:
+                    aa_dict[loc] = seq1(aa)
+
+    err_locs = []
+    protein_sequence = Seq(metadata.target_sequence).translate(table="1")
+    for i in range(len(protein_sequence)):
+        if str(i) in aa_dict and aa_dict[str(i)] != protein_sequence[i - 1]:
+            err_locs.append(i)
+    if len(err_locs) == 0:
+        return 0
+    aa_dict = {int(k): v for k, v in aa_dict.items()}
+    aa_dict = sorted(aa_dict.items())
+    aa_dict = dict(aa_dict)  # TODO what are we doing here
+
     """
-    # Find start location in provided target sequence when start position is not first position of sequence
-    import operator
-    offset_within_ts = {}
+    if len(err_locs) > 1:
+        aa_dict = {int(k):v for k,v in aa_dict.items()}
+        aa_dict = sorted(aa_dict.items())
+        aa_dict = dict(aa_dict)
+        locs = list(aa_dict.keys())[0:5]
+        p0, p1, p2, p3, p4 = locs[0], locs[1], locs[2], locs[3], locs[4]
+        offset = locs[0]
 
-    def validation_helper(protstring):
-        protstring = protstring[1:][:-1]
-        vs = protstring.split(';')
-        return vs
+        seq = ''
+        for key in aa_dict:
+            seq = seq + aa_dict[key]
 
-    for i in range(len(mave_dat.index)):
-        if mave_dat.at[i, 'target_type'] == 'Protein coding' and mave_dat.at[i, 'target_sequence_type'] == 'dna':
-            urn = mave_dat.at[i, 'urn']
-            if urn == 'urn:mavedb:00000053-a-1' or urn == 'urn:mavedb:00000053-a-2': # target sequence missing codon
-                continue
-            oseq = Seq(mave_dat.at[i, 'target_sequence'])
-            ts = str(oseq.translate(table = 1))
-
-            string = 'https://api.mavedb.org/api/v1/scoresets/urn%3Amavedb%3A' + mave_dat.at[i, 'urn'][11::] + '/scores'
-            origdat = requests.get(string).content
-            dat = pd.read_csv(io.StringIO(origdat.decode('utf-8')))
-
-            protlist = dat['hgvs_pro'].to_list()
-            if type(dat.at[0, 'hgvs_pro']) != str or dat.at[0, 'hgvs_pro'].startswith('NP'):
-                continue
-            protlist = [x.lstrip('p.') for x in protlist]
-
-            aa_dict = {}
-            for k in range(len(protlist)):
-                if protlist[k] == '_sy' or protlist[k] == '_wt':
-                    continue
+        for i in range(len(ts)):
+            if ts[i] == aa_dict[p0] and ts[i + p1 - p0] == aa_dict[p1] and ts[i + p2 - p0] == aa_dict[p2] and ts[i + p3 - p0] == aa_dict[p3] and ts[i + p4 - p0] == aa_dict[p4]:
+                if i + 1 == min(aa_dict.keys()) or i + 2 == min(aa_dict.keys()):
+                    offset_within_ts[urn] = 0
                 else:
-                    if ';' in protlist[k]:
-                        vs = validation_helper(protlist[k])
-                        for l in range(len(vs)):
-                            aa = vs[l][:3]
-                            if aa == '=' or vs[l][-3:] not in Bio.SeqUtils.IUPACData.protein_letters_3to1.keys():
-                                continue
-                            if '=' in vs[l]:
-                                loc = vs[l][3:][:-1]
-                            else:
-                                loc = vs[l][3:][:-3]
-                            if loc not in aa_dict:
-                                loc = re.sub('[^0-9]', '', loc)
-                                aa_dict[loc] = seq1(aa)
-
-                    else:
-                        if '_' in protlist[k]:
-                            continue
-                        aa = protlist[k][:3]
-                        if aa == '=' or protlist[k][-3:] not in Bio.SeqUtils.IUPACData.protein_letters_3to1.keys():
-                            continue
-                        if '=' in protlist[k]:
-                            loc = protlist[k][3:][:-1]
-                        else:
-                            loc = protlist[k][3:][:-3]
-                        if loc not in aa_dict:
-                            loc = re.sub('[^0-9]', '', loc)
-                            aa_dict[loc] = seq1(aa)
-
-
-            aa_dict.pop('', None)
-
-            err_locs = []
-            for m in range(len(ts)):
-                if str(m) in list(aa_dict.keys()):
-                    if aa_dict[str(m)] != ts[int(m) - 1]: # Str vs dict offset
-                        err_locs.append(m)
-
-            if len(err_locs) > 1:
-                aa_dict = {int(k):v for k,v in aa_dict.items()}
-                aa_dict = sorted(aa_dict.items())
-                aa_dict = dict(aa_dict)
-                locs = list(aa_dict.keys())[0:5]
-                p0, p1, p2, p3, p4 = locs[0], locs[1], locs[2], locs[3], locs[4]
-                offset = locs[0]
-
-                seq = ''
-                for key in aa_dict:
-                    seq = seq + aa_dict[key]
-
-                for i in range(len(ts)):
-                    if ts[i] == aa_dict[p0] and ts[i + p1 - p0] == aa_dict[p1] and ts[i + p2 - p0] == aa_dict[p2] and ts[i + p3 - p0] == aa_dict[p3] and ts[i + p4 - p0] == aa_dict[p4]:
-                        if i + 1 == min(aa_dict.keys()) or i + 2 == min(aa_dict.keys()):
-                            offset_within_ts[urn] = 0
-                        else:
-                            offset_within_ts[urn] = i
-                        break
-
+                    offset_within_ts[urn] = i
+                break
+    """
+    # this part probably goes after the result in ``select_reference()``
+    """
     for key in offset_within_ts:
         mappings_dict[key][1] = offset_within_ts[key]
     """

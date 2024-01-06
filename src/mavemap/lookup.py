@@ -293,7 +293,7 @@ def get_gene_location(metadata: ScoresetMetadata) -> Optional[GeneLocation]:
 
 
 def get_chromosome_identifier(chromosome: str) -> str:
-    """Get latest NC_ identifier given a chromosome name.
+    """Get latest NC_ accession identifier given a chromosome name.
 
     :param chromosome: prefix-free chromosome name, e.g. ``"8"``, ``"X"``
     :return: latest ID if available
