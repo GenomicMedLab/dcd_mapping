@@ -2,7 +2,7 @@
 
 This module is responsible for handling requests for MaveDB data, such as scoresets
 or scoreset metadata. It should also instantiate any external resources needed for
-tasks like transcript selection.
+tasks like alignment.
 
 Much of this can/should be replaced by the ``mavetools`` library. (Or ``wags-tails``.)
 """
@@ -216,10 +216,13 @@ def get_scoreset_records(scoreset_urn: str, silent: bool = True) -> List[ScoreRo
     return scores_data
 
 
-def get_ref_genome_file(build: ReferenceGenome = ReferenceGenome.HG38) -> Path:
+def get_ref_genome_file(
+    build: ReferenceGenome = ReferenceGenome.HG38, silent: bool = True
+) -> Path:
     """Acquire reference genome file in 2bit format from UCSC.
 
     :param build: genome build to acquire
+    :param silent: if True, suppress console output
     :return: path to acquired file
     :raise ResourceAcquisitionError: if unable to acquire file.
     """
@@ -229,7 +232,7 @@ def get_ref_genome_file(build: ReferenceGenome = ReferenceGenome.HG38) -> Path:
     # this file shouldn't change, so no need to think about more advanced caching
     if not genome_file.exists():
         try:
-            _http_download(url, genome_file, True)
+            _http_download(url, genome_file, silent)
         except requests.HTTPError:
             _logger.error(f"HTTPError when fetching reference genome file from {url}")
             raise ResourceAcquisitionError(f"Reference genome file at {url}")

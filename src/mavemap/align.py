@@ -88,8 +88,8 @@ def _get_blat_output(
     :return: BLAT query result
     :raise AlignmentError: if BLAT subprocess returns error code
     """
-    reference_genome_file = (
-        get_ref_genome_file()
+    reference_genome_file = get_ref_genome_file(
+        silent=silent
     )  # TODO hg38 by default--what about earlier builds?
     out_file = (
         get_mapping_tmp_dir() / f"blat_out_{scoreset_metadata.urn}_{uuid.uuid1()}.psl"
