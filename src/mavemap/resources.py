@@ -7,12 +7,14 @@ tasks like transcript selection.
 Much of this can/should be replaced by the ``mavetools`` library. (Or ``wags-tails``.)
 """
 import csv
+import json
 import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
+import click
 import requests
 from pydantic import ValidationError
 from tqdm import tqdm
@@ -36,7 +38,7 @@ def _http_download(url: str, out_path: Path, silent: bool = True) -> Path:
     :return: Path if download successful
     :raise requests.HTTPError: if request is unsuccessful
     """
-    print(f"Downloading {out_path.name} to {out_path.parents[0].absolute()}")
+    click.echo(f"Downloading {out_path.name} to {out_path.parents[0].absolute()}")
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
         total_size = int(r.headers.get("content-length", 0))
@@ -60,9 +62,9 @@ def _http_download(url: str, out_path: Path, silent: bool = True) -> Path:
     return out_path
 
 
-def fetch_all_scoreset_urns() -> Set[str]:
+def get_scoreset_urns() -> Set[str]:
     """Fetch all scoreset URNs. Since species is annotated at the scoreset target level,
-    we can't yet filter on anything like `homo sapien`.
+    we can't yet filter on anything like `homo sapien` -- meaning this is fairly slow.
 
     :return: set of URN strings
     """
@@ -76,13 +78,30 @@ def fetch_all_scoreset_urns() -> Set[str]:
     return set([urn for urns in scoreset_urn_lists for urn in urns])
 
 
-def fetch_all_human_scoreset_urns() -> List[str]:
+def _metadata_response_is_human(json_response: Dict) -> bool:
+    """Check that response from scoreset metadata API refers to a homo sapien target.
+
+    :param json_response: response from scoreset metadata API
+    :return: True if is human
+    """
+    for target_gene in json_response.get("targetGenes", []):
+        organism = (
+            target_gene.get("targetSequence", {})
+            .get("reference", {})
+            .get("organismName")
+        )
+        if organism == "Homo sapiens":
+            return True
+    return False
+
+
+def get_human_urns() -> List[str]:
     """Fetch all human scoreset URNs. Pretty slow, shouldn't be used frequently because
     it requires requesting every single scoreset.
 
     :return: list of human scoreset URNs
     """
-    scoreset_urns = fetch_all_scoreset_urns()
+    scoreset_urns = get_scoreset_urns()
     human_scoresets: List[str] = []
     for urn in scoreset_urns:
         r = requests.get(f"https://api.mavedb.org/api/v1/score-sets/{urn}")
@@ -93,11 +112,8 @@ def fetch_all_human_scoreset_urns() -> List[str]:
             continue
         data = r.json()
 
-        ref_maps = data.get("targetGene", {}).get("referenceMaps", [])
-        if ref_maps:
-            for ref_map in ref_maps:
-                if ref_map.get("genome", {}).get("organismName", "") == "Homo sapiens":
-                    human_scoresets.append(urn)
+        if _metadata_response_is_human(data):
+            human_scoresets.append(urn)
     return human_scoresets
 
 
@@ -121,20 +137,31 @@ def _get_uniprot_ref(scoreset_json: Dict[str, Any]) -> Optional[UniProtRef]:
 def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
     """Acquire metadata for scoreset.
 
-    Issues an API call every time. In the future, these could be cached.
+    Only hit the MaveDB API if unavailable locally. That means data must be refreshed
+    manually (i.e. you'll need to delete a scoreset file yourself for this method to
+    fetch a new one). This could be improved in future versions.
 
     :param scoreset_urn: URN for scoreset
     :return: Object containing salient metadata
     :raise ResourceAcquisitionError: if unable to acquire metadata
     """
-    url = f"https://api.mavedb.org/api/v1/score-sets/{scoreset_urn}"
-    r = requests.get(url)
-    try:
-        r.raise_for_status()
-    except requests.HTTPError:
-        _logger.error(f"Received HTTPError from {url}")
-        raise ResourceAcquisitionError(f"Metadata for scoreset {scoreset_urn}")
-    metadata = r.json()
+    metadata_json = LOCAL_STORE_PATH / f"{scoreset_urn.replace(':', '')}_metadata.json)"
+    if not metadata_json.exists():
+        url = f"https://api.mavedb.org/api/v1/score-sets/{scoreset_urn}"
+        r = requests.get(url)
+        try:
+            r.raise_for_status()
+        except requests.HTTPError:
+            _logger.error(f"Received HTTPError from {url}")
+            raise ResourceAcquisitionError(f"Metadata for scoreset {scoreset_urn}")
+        metadata = r.json()
+    else:
+        with open(metadata_json, "r") as f:
+            metadata = json.load(f)
+    if not _metadata_response_is_human(metadata):
+        raise ResourceAcquisitionError(
+            f"Experiment for {scoreset_urn} contains no human targets"
+        )
     if len(metadata["targetGenes"]) > 1:
         raise ResourceAcquisitionError(
             f"Multiple target genes for {scoreset_urn} -- look into this."

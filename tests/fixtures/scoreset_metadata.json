@@ -1,6 +1,15 @@
 {
   "scoreset_metadata": [
     {
+      "urn": "urn:mavedb:00000097-g-1",
+      "target_gene_name": "BRCA1 Exon 5",
+      "target_gene_category": "Protein coding",
+      "target_sequence": "TTAATTTCAGGAGCCTACAAGAAAGTACGAGATTTAGTCAACTTGTTGAAGAGCTATTGAAAATCATTTGTGCTTTTCAGCTTGACACAGGTTTGGAGTGTAAGTGTTG",
+      "target_sequence_type": "dna",
+      "target_reference_genome": "hg19",
+      "target_uniprot_ref": null
+    },
+    {
       "urn": "urn:mavedb:00000041-a-1",
       "target_gene_name": "Src catalytic domain",
       "target_gene_category": "Protein coding",

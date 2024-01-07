@@ -20,21 +20,27 @@ _logger = logging.getLogger(__name__)
     help="Enable debug logging",
 )
 def cli(urn: str, debug: bool) -> None:
-    """Process user commands and call core `map_scoreset()` function.
+    """Get VRS mapping on preferred transcript for URN.
 
     For example:
 
-    % python3 -m mavemap.cl 'urn:mavedb:00000329-a-1'
+    % dcd-map 'urn:mavedb:00000329-a-1'
 
     \f
     :param urn: scoreset URN
     :param debug: if True, enable debug logging
     """  # noqa: D301
-    logging.basicConfig(filename="mavemap.log", level=logging.INFO, force=True)
+    logging.basicConfig(
+        filename="mavemap.log",
+        format="%(asctime)s %(levelname)s:%(message)s",
+        level=logging.INFO,
+        force=True,
+    )
     if debug:
         _logger.setLevel(logging.DEBUG)
     else:
         _logger.setLevel(logging.INFO)
+    _logger.debug("debug logging enabled")
     asyncio.run(map_scoreset_urn(urn, silent=False))
 
 

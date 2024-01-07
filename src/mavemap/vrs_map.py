@@ -1,6 +1,6 @@
 """Map transcripts to VRS objects."""
-from typing import Dict, List, Optional, Union
 import logging
+from typing import List, Optional, Union
 
 import click
 from Bio.Seq import Seq
@@ -22,7 +22,6 @@ from mavemap.schemas import (
     TargetType,
     TxSelectResult,
 )
-
 
 _logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ def _make_dup_state() -> LiteralSequenceExpression:
     raise NotImplementedError
 
 
-def _update_allele_coords(allele: Allele, hits, ranges) -> Allele:
+def _update_allele_coords(allele: Allele, hits, ranges) -> Allele:  # noqa
     """TODO
 
     :param allele:
@@ -128,7 +127,7 @@ def _get_haplotype_allele(
                 # shouldn't be possible anyway
                 raise ValueError
             if layer == AnnotationLayer.GENOMIC:
-                allele = _update_allele_coords(allele, hits, ranges)
+                allele = _update_allele_coords(allele, hits, ranges)  # noqa
             else:
                 allele.location.start += offset
                 allele.location.end += offset
@@ -161,7 +160,7 @@ def _map_protein_coding(
     metadata: ScoresetMetadata,
     transcript: TxSelectResult,
     records: List[ScoreRow],
-):
+) -> None:
     """TODO
 
     * there's a ``stri`` variable set if there are >4 unique chars in the target sequence??
@@ -172,7 +171,7 @@ def _map_protein_coding(
     :return:
     """
     alias_map = {}
-    mappings_list = []
+    mappings_list = []  # noqa
     var_ids_pre_map = []
     var_ids_post_map = []
 
@@ -181,11 +180,11 @@ def _map_protein_coding(
     )
     sequence_id = _get_sequence_id(target_sequence)
 
-    scores = [row.score for row in records]
-    accessions = [row.accession for row in records]
+    scores = [row.score for row in records]  # noqa
+    accessions = [row.accession for row in records]  # noqa
 
     for row in records:
-        if type(row.hgvs_pro) != str:
+        if not isinstance(row.hgvs_pro, str):
             raise ValueError  # should be impossible -- TODO remove
         elif len(row.hgvs_pro) == 3 or row.hgvs_pro == "_wt" or row.hgvs_pro == "_sy":
             raise ValueError  # TODO should understand why this matters
@@ -270,8 +269,8 @@ def _map_regulatory_noncoding(
     metadata: ScoresetMetadata,
     records: List[ScoreRow],
     align_result: AlignmentResult,
-):
-    """
+) -> None:
+    """TODO
 
     :param metadata: metadata for URN
     :param records: list of MAVE experiment result rows
@@ -284,9 +283,18 @@ def _map_regulatory_noncoding(
     for row in records:
         if row.hgvs_nt == "_wt" or row.hgvs_nt == "_sy":
             raise ValueError  # TODO unclear what's up here
-        pre_map_allele = _get_haplotype_allele(row.hgvs_nt[2:], align_result.chrom, 0, sequence_id, AnnotationLayer.GENOMIC)  # TODO need query/hit ranges and strand for something
+        pre_map_allele = _get_haplotype_allele(
+            row.hgvs_nt[2:], align_result.chrom, 0, sequence_id, AnnotationLayer.GENOMIC
+        )  # TODO need query/hit ranges and strand for something
         var_ids_pre_map.append(pre_map_allele)
-        post_map_allele = _get_haplotype_allele(row.hgvs_nt[2:], align_result.chrom, 0, sequence_id, AnnotationLayer.GENOMIC, False)  # TODO need query/hit ranges and strand for something
+        post_map_allele = _get_haplotype_allele(
+            row.hgvs_nt[2:],
+            align_result.chrom,
+            0,
+            sequence_id,
+            AnnotationLayer.GENOMIC,
+            False,
+        )  # TODO need query/hit ranges and strand for something
         var_ids_post_map.append(post_map_allele)
 
     return var_ids_pre_map, var_ids_post_map
@@ -294,10 +302,11 @@ def _map_regulatory_noncoding(
 
 def vrs_map(
     metadata: ScoresetMetadata,
+    align_result: AlignmentResult,
     transcript: Optional[TxSelectResult],
     records: List[ScoreRow],
     silent: bool = True,
-):
+) -> None:
     """Given a description of a MAVE scoreset and an aligned transcript, generate
     the corresponding VRS objects.
 

@@ -280,7 +280,7 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
     raise NotImplementedError
 
 
-async def select_reference(
+async def select_transcript(
     metadata: ScoresetMetadata,
     records: List[ScoreRow],
     align_result: AlignmentResult,
@@ -288,14 +288,14 @@ async def select_reference(
 ) -> Optional[TxSelectResult]:
     """Select appropriate human reference sequence for scoreset.
 
-    * Fairly trivial for regulatory/other noncoding scoresets which report genomic
-    variations. <- TODO do we do anything at all for this? Currently just returning None
+    * Unnecessary for regulatory/other noncoding scoresets which report genomic
+    variations.
     * For protein scoresets, identify a matching RefSeq protein reference sequence.
 
     :param metadata: Scoreset metadata from MaveDB
     :param records:
     :param align_result: alignment results
-    :return:
+    :return: Transcript description (accession ID, offset, selected sequence, etc)
     """
     msg = f"Selecting reference sequence for {metadata.urn}..."
     if not silent:
@@ -304,19 +304,16 @@ async def select_reference(
 
     if metadata.target_gene_category == TargetType.PROTEIN_CODING:
         output = await _select_protein_reference(metadata, align_result)
-        if metadata.target_sequence_type == TargetSequenceType.DNA:
+        if output and metadata.target_sequence_type == TargetSequenceType.DNA:
             if (
                 metadata.urn == "urn:mavedb:00000053-a-1"
                 or metadata.urn == "urn:mavedb:00000053-a-2"
             ):
-                # target sequence missing codon
+                # target sequence is missing codon
                 return None
-            _ = _offset_target_sequence(metadata, records)
-            # TODO update w/ offset
-
+            output.start = _offset_target_sequence(metadata, records)
     else:
-        # TODO regulatory/noncoding scoresets
-        # anything needed here?
+        # can't provide transcripts for regulatory/noncoding scoresets
         return None
 
     msg = "Reference selection complete."

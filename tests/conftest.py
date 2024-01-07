@@ -103,5 +103,5 @@ def align_result_fixture():
                 SequenceRange(start=12618514, end=12618568),
             ],
         ),
-        "urn:mavedb:00000097-0-1": AlignmentResult(),
+        # "urn:mavedb:00000097-0-1": AlignmentResult(),
     }

@@ -6,7 +6,7 @@ from cool_seq_tool.schemas import TranscriptPriority
 
 from mavemap.resources import get_scoreset_records
 from mavemap.schemas import AlignmentResult, ScoresetMetadata
-from mavemap.transcripts import select_reference
+from mavemap.transcripts import select_transcript
 
 
 @pytest.mark.asyncio(scope="module")
@@ -20,7 +20,7 @@ async def test_tx_src(
     records = get_scoreset_records(urn)  # TODO real fixture
     alignment_result = align_result_fixture[urn]
 
-    actual = await select_reference(metadata, records, alignment_result)
+    actual = await select_transcript(metadata, records, alignment_result)
 
     assert actual
     assert actual.np == "NP_938033.1"
@@ -41,7 +41,7 @@ async def test_tx_scn5a(
     records = get_scoreset_records(urn)
     alignment_result = align_result_fixture[urn]
 
-    actual = await select_reference(metadata, records, alignment_result)
+    actual = await select_transcript(metadata, records, alignment_result)
 
     assert actual
     assert actual.np == "NP_000326.2"
@@ -62,7 +62,7 @@ async def test_tx_hbb(
     records = get_scoreset_records(urn)
     alignment_result = align_result_fixture[urn]
 
-    actual = await select_reference(metadata, records, alignment_result)
+    actual = await select_transcript(metadata, records, alignment_result)
     assert actual is None
 
 
@@ -77,7 +77,7 @@ async def test_tx_app(
     records = get_scoreset_records(urn)
     alignment_result = align_result_fixture[urn]
 
-    actual = await select_reference(metadata, records, alignment_result)
+    actual = await select_transcript(metadata, records, alignment_result)
     assert actual is None
 
 
@@ -92,7 +92,7 @@ async def test_tx_raf(
     records = get_scoreset_records(urn)
     alignment_result = align_result_fixture[urn]
 
-    actual = await select_reference(metadata, records, alignment_result)
+    actual = await select_transcript(metadata, records, alignment_result)
     assert actual
     assert actual.np == "NP_002871.1"
     assert actual.start == 51
@@ -112,7 +112,7 @@ async def test_tx_brca(
     records = get_scoreset_records(urn)
     alignment_result = align_result_fixture[urn]
 
-    actual = await select_reference(metadata, records, alignment_result)
+    actual = await select_transcript(metadata, records, alignment_result)
     assert actual
     assert actual.np == "NP_009225.1"
     assert actual.start == -1

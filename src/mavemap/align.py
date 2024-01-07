@@ -79,6 +79,9 @@ def _get_blat_output(
     should be deleted by the process once complete. This happens manually, but we could
     probably add a decorator or a context manager for a bit more elegance.
 
+    Ideally, we should see if we could pipe query output to STDOUT and then grab/process
+    it that way instead of using a temporary intermediary file.
+
     :param scoreset_metadata: object containing scoreset attributes
     :param query_file: Path to BLAT query file
     :param silent: suppress BLAT command output
@@ -88,7 +91,9 @@ def _get_blat_output(
     reference_genome_file = (
         get_ref_genome_file()
     )  # TODO hg38 by default--what about earlier builds?
-    out_file = get_mapping_tmp_dir() / "blat_out.psl"
+    out_file = (
+        get_mapping_tmp_dir() / f"blat_out_{scoreset_metadata.urn}_{uuid.uuid1()}.psl"
+    )
 
     if scoreset_metadata.target_sequence_type == TargetSequenceType.PROTEIN:
         target_commands = "-q=prot -t=dnax"
