@@ -272,11 +272,6 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
                     offset_within_ts[urn] = i
                 break
     """
-    # this part probably goes after the result in ``select_reference()``
-    """
-    for key in offset_within_ts:
-        mappings_dict[key][1] = offset_within_ts[key]
-    """
     raise NotImplementedError
 
 
@@ -303,7 +298,7 @@ async def select_transcript(
     _logger.info(msg)
 
     if metadata.urn in {"urn:mavedb:00000053-a-1", "urn:mavedb:00000053-a-2"}:
-        # target sequence is missing codon
+        # target sequence for these scoresets is missing codon
         return None
 
     if metadata.target_gene_category == TargetType.PROTEIN_CODING:

@@ -33,7 +33,7 @@ async def map_scoreset(
         _logger.error(f"Alignment failed for scoreset {metadata.urn}")
         return None
 
-    print("Alignment result:")
+    print("Alignment result:")  # TODO remove these print calls
     print(alignment_result)
 
     try:
@@ -68,4 +68,4 @@ async def map_scoreset_urn(urn: str, silent: bool = True) -> None:
         click.echo(f"Error: {msg}")
         return None
     mapped = await map_scoreset(metadata, records, silent)
-    return mapped  # TODO
+    return mapped  # TODO not sure what this will be

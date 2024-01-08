@@ -79,10 +79,10 @@ def get_scoreset_urns() -> Set[str]:
 
 
 def _metadata_response_is_human(json_response: Dict) -> bool:
-    """Check that response from scoreset metadata API refers to a homo sapien target.
+    """Check that response from scoreset metadata API refers to a human genome target.
 
     :param json_response: response from scoreset metadata API
-    :return: True if is human
+    :return: True if contains a target tagged as ``"Homo sapiens"``
     """
     for target_gene in json_response.get("targetGenes", []):
         organism = (
@@ -145,8 +145,8 @@ def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
     :return: Object containing salient metadata
     :raise ResourceAcquisitionError: if unable to acquire metadata
     """
-    metadata_json = LOCAL_STORE_PATH / f"{scoreset_urn.replace(':', '')}_metadata.json)"
-    if not metadata_json.exists():
+    metadata_file = LOCAL_STORE_PATH / f"{scoreset_urn.replace(':', '')}_metadata.json)"
+    if not metadata_file.exists():
         url = f"https://api.mavedb.org/api/v1/score-sets/{scoreset_urn}"
         r = requests.get(url)
         try:
@@ -155,8 +155,10 @@ def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
             _logger.error(f"Received HTTPError from {url}")
             raise ResourceAcquisitionError(f"Metadata for scoreset {scoreset_urn}")
         metadata = r.json()
+        with open(metadata_file, "w") as f:
+            json.dump(metadata, f)
     else:
-        with open(metadata_json, "r") as f:
+        with open(metadata_file, "r") as f:
             metadata = json.load(f)
     if not _metadata_response_is_human(metadata):
         raise ResourceAcquisitionError(
