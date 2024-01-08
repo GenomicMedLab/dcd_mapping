@@ -3,7 +3,7 @@ import logging
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 from Bio.SearchIO import HSP
 from Bio.SearchIO import read as read_blat
@@ -28,12 +28,20 @@ class AlignmentError(Exception):
     """Raise when errors encountered during alignment."""
 
 
+def _write_query_file(file: Path, lines: List[str]) -> None:
+    """Write lines to query file. This method is broken out to enable easy mocking while
+    testing.
+
+    :param file: path to query file
+    :param lines: list of lines to write (should be header and then sequence)
+    """
+    with open(file, "w") as f:
+        for line in lines:
+            f.write(f"{line}\n")
+
+
 def _build_query_file(scoreset_metadata: ScoresetMetadata) -> Generator[Path, Any, Any]:
     """Construct BLAT query file.
-
-    TODO double-check that yield behaves the way I think it does
-
-    This function is broken out to enable mocking while testing.
 
     :param scoreset_metadata: MaveDB scoreset metadata object
     :return: Yielded Path to constructed file. Deletes file once complete.
@@ -42,10 +50,8 @@ def _build_query_file(scoreset_metadata: ScoresetMetadata) -> Generator[Path, An
         get_mapping_tmp_dir() / f"blat_query_{scoreset_metadata.urn}_{uuid.uuid1()}.fa"
     )
     _logger.debug("Writing BLAT query to %", query_file)
-    with open(query_file, "w") as f:
-        f.write(">" + "query" + "\n")
-        f.write(scoreset_metadata.target_sequence + "\n")
-        f.close()
+    lines = [">query", scoreset_metadata.target_sequence]
+    _write_query_file(query_file, lines)
     yield query_file
     query_file.unlink()
 
@@ -256,12 +262,14 @@ def align(scoreset_metadata: ScoresetMetadata, silent: bool = True) -> Alignment
     if not silent:
         click.echo(msg)
     _logger.info(msg)
+
     query_file = next(_build_query_file(scoreset_metadata))
     blat_output = _get_blat_output(scoreset_metadata, query_file, silent)
-
     match = _get_best_match(blat_output, scoreset_metadata)
+
     msg = "Alignment complete."
     if not silent:
         click.echo(msg)
     _logger.info(msg)
+
     return match

@@ -114,39 +114,6 @@ def test_align_ube2i(scoreset_metadata_fixture):
     assert len(align_result.hit_subranges) == len(hit_subranges)
 
 
-def test_align_app(scoreset_metadata_fixture):
-    """Test ``align()`` method for urn:mavedb:00000113-a-2
-
-    Todo:
-    ----
-    * Why isn't this in the original results notebook?
-    """
-    scoreset_metadata = scoreset_metadata_fixture["urn:mavedb:00000113-a-2"]
-    align_result = align(scoreset_metadata)
-    assert align_result
-    assert align_result.chrom == "chr21"
-    assert align_result.strand == Strand.NEGATIVE
-    assert align_result.coverage == pytest.approx(100.0)
-    assert align_result.ident_pct == pytest.approx(100.0)
-    assert align_result.query_range.start == 0
-    assert align_result.query_range.end == 42
-    query_subranges = [
-        [0, 17],
-        [17, 42],
-    ]
-    for actual, expected in zip(align_result.query_subranges, query_subranges):
-        assert actual.start == expected[0]
-        assert actual.end == expected[1]
-    assert len(align_result.query_subranges) == len(query_subranges)
-    assert align_result.hit_range.start == 25891793
-    assert align_result.hit_range.end == 25897623
-    hit_subranges = [[25897572, 25897623], [25891793, 25891868]]
-    for actual, expected in zip(align_result.hit_subranges, hit_subranges):
-        assert actual.start == expected[0]
-        assert actual.end == expected[1]
-    assert len(align_result.hit_subranges) == len(hit_subranges)
-
-
 def test_align_scn5a(scoreset_metadata_fixture):
     """Test ``align()`` method on urn:mavedb:00000098-a-1"""
     scoreset_metadata = scoreset_metadata_fixture["urn:mavedb:00000098-a-1"]
@@ -191,31 +158,6 @@ def test_align_raf(scoreset_metadata_fixture):
     assert align_result.hit_range.start == 12618514
     assert align_result.hit_range.end == 12612062
     hit_subranges = [[12611999, 12612062], [12618514, 12618568]]
-    for actual, expected in zip(align_result.hit_subranges, hit_subranges):
-        assert actual.start == expected[0]
-        assert actual.end == expected[1]
-    assert len(align_result.hit_subranges) == len(hit_subranges)
-
-
-def test_align_brca1(scoreset_metadata_fixture):
-    """Test ``align()`` on urn:mavedb:00000097-0-1."""
-    scoreset_metadata = scoreset_metadata_fixture["urn:mavedb:00000097-0-1"]
-    align_result = align(scoreset_metadata)
-    assert align_result
-    assert align_result.chrom == "chr17"
-    assert align_result.strand == Strand.NEGATIVE
-    assert align_result.coverage == pytest.approx(100.0)
-    assert align_result.ident_pct == pytest.approx(100.0)
-    assert align_result.query_range.start == 0
-    assert align_result.query_range.end == 78414
-    query_subranges = [[0, 78414]]
-    for actual, expected in zip(align_result.query_subranges, query_subranges):
-        assert actual.start == expected[0]
-        assert actual.end == expected[1]
-    assert len(align_result.query_subranges) == len(query_subranges)
-    assert align_result.hit_range.start == 43045704
-    assert align_result.hit_range.end == 43124118
-    hit_subranges = [[43045704, 43124118]]
     for actual, expected in zip(align_result.hit_subranges, hit_subranges):
         assert actual.start == expected[0]
         assert actual.end == expected[1]

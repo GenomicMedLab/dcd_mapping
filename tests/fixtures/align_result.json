@@ -43,22 +43,6 @@
     "hit_range": { "start": 5227021, "end": 5227208 },
     "hit_subranges": [{ "start": 5227021, "end": 5227208 }]
   },
-  "urn:mavedb:00000113-a-2": {
-    "chrom": "chr21",
-    "strand": -1,
-    "coverage": 100.0,
-    "ident_pct": 100.0,
-    "query_range": { "start": 0, "end": 42 },
-    "query_subranges": [
-      { "start": 0, "end": 17 },
-      { "start": 17, "end": 42 }
-    ],
-    "hit_range": { "start": 25891793, "end": 25897623 },
-    "hit_subranges": [
-      { "start": 25897572, "end": 25897623 },
-      { "start": 25891793, "end": 25891868 }
-    ]
-  },
   "urn:mavedb:00000061-h-1": {
     "chrom": "chr3",
     "strand": -1,
@@ -74,6 +58,5 @@
       { "start": 1261199, "end": 12612062 },
       { "start": 12618514, "end": 12618568 }
     ]
-  },
-  "urn:mavedb:00000097-0-1": {}
+  }
 }

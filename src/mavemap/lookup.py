@@ -5,6 +5,7 @@ This module should contain methods that we don't want to think about caching.
 import logging
 from typing import Dict, List, Optional
 
+import polars as pl
 import requests
 from cool_seq_tool.app import CoolSeqTool
 from cool_seq_tool.handlers.seqrepo_access import SeqRepoAccess
@@ -116,39 +117,6 @@ async def get_transcripts(
     """
     result = await uta.execute_query(query)
     return [row["tx_ac"] for row in result]
-
-
-def get_mane_transcripts(transcripts: List[str]) -> List[ManeDescription]:
-    """Get corresponding MANE data for transcripts.
-
-    :param transcripts: candidate transcripts list
-    :return: complete MANE descriptions
-    """
-    mane = CoolSeqToolBuilder().mane_transcript_mappings
-    mane_transcripts = mane.get_mane_from_transcripts(transcripts)
-    mane_data = []
-    for result in mane_transcripts:
-        mane_data.append(
-            ManeDescription(
-                ncbi_gene_id=result["#NCBI_GeneID"],
-                ensembl_gene_id=result["Ensembl_Gene"],
-                hgnc_gene_id=result["HGNC_ID"],
-                symbol=result["symbol"],
-                name=result["name"],
-                refseq_nuc=result["RefSeq_nuc"],
-                refseq_prot=result["RefSeq_prot"],
-                ensembl_nuc=result["Ensembl_nuc"],
-                ensembl_prot=result["Ensembl_prot"],
-                transcript_priority=TranscriptPriority(
-                    "_".join(result["MANE_status"].lower().split())
-                ),
-                grch38_chr=result["GRCh38_chr"],
-                chr_start=result["chr_start"],
-                chr_end=result["chr_end"],
-                chr_strand=result["chr_strand"],
-            )
-        )
-    return mane_data
 
 
 # ------------------------------ Gene Normalizer ------------------------------ #
@@ -300,12 +268,18 @@ def get_chromosome_identifier(chromosome: str) -> str:
     :raise KeyError: if unable to retrieve identifier
     """
     sr = CoolSeqToolBuilder().seqrepo_access
-    result, _ = sr.chromosome_to_acs(chromosome)
-    if not result:
+    acs = []
+    for assembly in ["GRCh38", "GRCh37"]:
+        tmp_acs, _ = sr.translate_identifier(
+            f"{assembly}:chr{chromosome}", target_namespaces="refseq"
+        )
+        for ac in tmp_acs:
+            acs.append(ac.split("refseq:")[-1])
+    if not acs:
         raise KeyError
 
     # make sure e.g. version .10 > version .9
-    sorted_results = sorted(result, key=lambda i: int(i.split(".")[-1]))
+    sorted_results = sorted(acs, key=lambda i: int(i.split(".")[-1]))
     return sorted_results[-1]
 
 
@@ -408,6 +382,42 @@ def hgvs_to_vrs(hgvs: str, alias_map: Dict) -> Allele:
         raise ValueError
 
     return allele
+
+
+# ----------------------------------- MANE ----------------------------------- #
+
+
+def get_mane_transcripts(transcripts: List[str]) -> List[ManeDescription]:
+    """Get corresponding MANE data for transcripts.
+
+    :param transcripts: candidate transcripts list
+    :return: complete MANE descriptions
+    """
+    mane_df = CoolSeqToolBuilder().mane_transcript_mappings.df
+    mane_results = mane_df.filter(pl.col("RefSeq_nuc").is_in(transcripts))
+    mane_data = []
+    for row in mane_results.rows(named=True):
+        mane_data.append(
+            ManeDescription(
+                ncbi_gene_id=row["#NCBI_GeneID"],
+                ensembl_gene_id=row["Ensembl_Gene"],
+                hgnc_gene_id=row["HGNC_ID"],
+                symbol=row["symbol"],
+                name=row["name"],
+                refseq_nuc=row["RefSeq_nuc"],
+                refseq_prot=row["RefSeq_prot"],
+                ensembl_nuc=row["Ensembl_nuc"],
+                ensembl_prot=row["Ensembl_prot"],
+                transcript_priority=TranscriptPriority(
+                    "_".join(row["MANE_status"].lower().split())
+                ),
+                grch38_chr=row["GRCh38_chr"],
+                chr_start=row["chr_start"],
+                chr_end=row["chr_end"],
+                chr_strand=row["chr_strand"],
+            )
+        )
+    return mane_data
 
 
 # ---------------------------------- Misc. ---------------------------------- #

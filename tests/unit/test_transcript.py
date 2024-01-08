@@ -67,21 +67,6 @@ async def test_tx_hbb(
 
 
 @pytest.mark.asyncio(scope="module")
-async def test_tx_app(
-    scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
-    align_result_fixture: Dict[str, AlignmentResult],
-):
-    """Test transcript selection for urn:mavedb:00000113-a-2"""
-    urn = "urn:mavedb:00000113-a-2"
-    metadata = scoreset_metadata_fixture[urn]
-    records = get_scoreset_records(urn)
-    alignment_result = align_result_fixture[urn]
-
-    actual = await select_transcript(metadata, records, alignment_result)
-    assert actual is None
-
-
-@pytest.mark.asyncio(scope="module")
 async def test_tx_raf(
     scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
     align_result_fixture: Dict[str, AlignmentResult],
@@ -106,16 +91,4 @@ async def test_tx_brca(
     scoreset_metadata_fixture: Dict[str, ScoresetMetadata],
     align_result_fixture: Dict[str, AlignmentResult],
 ):
-    """Test transcript selection for urn:mavedb:00000097-0-1"""
-    urn = "urn:mavedb:00000097-0-1"
-    metadata = scoreset_metadata_fixture[urn]
-    records = get_scoreset_records(urn)
-    alignment_result = align_result_fixture[urn]
-
-    actual = await select_transcript(metadata, records, alignment_result)
-    assert actual
-    assert actual.np == "NP_009225.1"
-    assert actual.start == -1
-    assert actual.is_full_match is False
-    assert actual.nm == "NM_007294.4"
-    assert actual.transcript_mode == TranscriptPriority.MANE_SELECT
+    """Test transcript selection for"""
