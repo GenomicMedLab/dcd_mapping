@@ -1,6 +1,6 @@
 """Map transcripts to VRS objects."""
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import click
 from Bio.Seq import Seq
@@ -269,15 +269,15 @@ def _map_regulatory_noncoding(
     metadata: ScoresetMetadata,
     records: List[ScoreRow],
     align_result: AlignmentResult,
-) -> None:
-    """TODO
+) -> Tuple[List[Allele], List[Allele]]:
+    """Return VRS alleles representing pre- and post-mapped variation objects (?)
 
     :param metadata: metadata for URN
     :param records: list of MAVE experiment result rows
     :return: TODO
     """
-    var_ids_pre_map = []
-    var_ids_post_map = []
+    var_ids_pre_map: List[Allele] = []
+    var_ids_post_map: List[Allele] = []
     sequence_id = _get_sequence_id(metadata.target_sequence)
 
     for row in records:
@@ -286,6 +286,9 @@ def _map_regulatory_noncoding(
         pre_map_allele = _get_haplotype_allele(
             row.hgvs_nt[2:], align_result.chrom, 0, sequence_id, AnnotationLayer.GENOMIC
         )  # TODO need query/hit ranges and strand for something
+        if isinstance(pre_map_allele, Haplotype):
+            breakpoint()  # TODO investigate
+            raise NotImplementedError
         var_ids_pre_map.append(pre_map_allele)
         post_map_allele = _get_haplotype_allele(
             row.hgvs_nt[2:],
@@ -295,6 +298,9 @@ def _map_regulatory_noncoding(
             AnnotationLayer.GENOMIC,
             False,
         )  # TODO need query/hit ranges and strand for something
+        if isinstance(post_map_allele, Haplotype):
+            breakpoint()  # TODO investigate
+            raise NotImplementedError
         var_ids_post_map.append(post_map_allele)
 
     return var_ids_pre_map, var_ids_post_map
@@ -306,7 +312,7 @@ def vrs_map(
     transcript: Optional[TxSelectResult],
     records: List[ScoreRow],
     silent: bool = True,
-) -> None:
+) -> Tuple[Allele, Allele]:
     """Given a description of a MAVE scoreset and an aligned transcript, generate
     the corresponding VRS objects.
 
@@ -325,6 +331,7 @@ def vrs_map(
         click.echo(msg)
     _logger.info(msg)
     if metadata.target_gene_category == TargetType.PROTEIN_CODING and transcript:
-        _map_protein_coding(metadata, transcript, records)
+        result = _map_protein_coding(metadata, transcript, records)
     else:
-        _map_regulatory_noncoding(metadata, records, align_result)
+        result = _map_regulatory_noncoding(metadata, records, align_result)
+    return result

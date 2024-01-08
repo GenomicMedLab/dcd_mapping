@@ -85,6 +85,8 @@ def _choose_best_mane_transcript(
     originally a little longer but I think all we have to worry about is grabbing based
     on MANE status.
 
+    TODO: this shouldn't be necessary anymore, we already sort them
+
     :param mane_transcripts: list of MANE transcript descriptions
     :return: best transcript
     """

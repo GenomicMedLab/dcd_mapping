@@ -388,11 +388,21 @@ def hgvs_to_vrs(hgvs: str, alias_map: Dict) -> Allele:
 
 
 def get_mane_transcripts(transcripts: List[str]) -> List[ManeDescription]:
-    """Get corresponding MANE data for transcripts.
+    """Get corresponding MANE data for transcripts. Results given in order of
+    transcript preference.
 
     :param transcripts: candidate transcripts list
     :return: complete MANE descriptions
     """
+
+    def _sort_mane_result(description: ManeDescription) -> int:
+        if description.transcript_priority == TranscriptPriority.MANE_SELECT:
+            return 2
+        elif description.transcript_priority == TranscriptPriority.MANE_PLUS_CLINICAL:
+            return 1
+        else:  # should be impossible
+            return 0
+
     mane_df = CoolSeqToolBuilder().mane_transcript_mappings.df
     mane_results = mane_df.filter(pl.col("RefSeq_nuc").is_in(transcripts))
     mane_data = []
@@ -417,6 +427,7 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeDescription]:
                 chr_strand=row["chr_strand"],
             )
         )
+    mane_data.sort(key=_sort_mane_result)
     return mane_data
 
 
