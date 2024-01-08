@@ -246,33 +246,32 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
 
     amino_acids_by_position = {int(k): v for k, v in amino_acids_by_position.items()}
     amino_acids_by_position = sorted(amino_acids_by_position.items())
-    amino_acids_by_position = dict(
-        amino_acids_by_position
-    )  # TODO what are we doing here
-    breakpoint()
+    amino_acids_by_position = dict(amino_acids_by_position)
+    p0, p1, p2, p3, p4 = list(amino_acids_by_position.keys())[0:5]
 
-    """
-    if len(err_locs) > 1:
-        aa_dict = {int(k):v for k,v in aa_dict.items()}
-        aa_dict = sorted(aa_dict.items())
-        aa_dict = dict(aa_dict)
-        locs = list(aa_dict.keys())[0:5]
-        p0, p1, p2, p3, p4 = locs[0], locs[1], locs[2], locs[3], locs[4]
-        offset = locs[0]
+    seq = ""
+    for value in amino_acids_by_position.values():
+        seq += value
 
-        seq = ''
-        for key in aa_dict:
-            seq = seq + aa_dict[key]
-
-        for i in range(len(ts)):
-            if ts[i] == aa_dict[p0] and ts[i + p1 - p0] == aa_dict[p1] and ts[i + p2 - p0] == aa_dict[p2] and ts[i + p3 - p0] == aa_dict[p3] and ts[i + p4 - p0] == aa_dict[p4]:
-                if i + 1 == min(aa_dict.keys()) or i + 2 == min(aa_dict.keys()):
-                    offset_within_ts[urn] = 0
-                else:
-                    offset_within_ts[urn] = i
-                break
-    """
-    raise NotImplementedError
+    protein_sequence = _get_protein_sequence(metadata.target_sequence)
+    offset = 0
+    for i, base in enumerate(protein_sequence):
+        if all(
+            [
+                base == amino_acids_by_position[p0],
+                protein_sequence[i + p1 - p0] == amino_acids_by_position[p1],
+                protein_sequence[i + p2 - p0] == amino_acids_by_position[p2],
+                protein_sequence[i + p3 - p0] == amino_acids_by_position[p3],
+                protein_sequence[i + p4 - p0] == amino_acids_by_position[p4],
+            ]
+        ):
+            if i + 1 == min(amino_acids_by_position.keys()) or i + 2 == min(
+                amino_acids_by_position.keys()
+            ):
+                offset = 0
+            else:
+                offset = i
+    return offset
 
 
 async def select_transcript(
