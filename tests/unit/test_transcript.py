@@ -48,7 +48,7 @@ async def test_tx_scn5a(
     assert actual.start == 1619
     assert actual.is_full_match is True
     assert actual.nm == "NM_000335.5"
-    assert actual.transcript_mode == TranscriptPriority.MANE_PLUS_CLINICAL
+    assert actual.transcript_mode == TranscriptPriority.MANE_SELECT
 
 
 @pytest.mark.asyncio(scope="module")

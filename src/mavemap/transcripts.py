@@ -13,17 +13,20 @@ from mavemap.lookup import (
     get_chromosome_identifier,
     get_gene_symbol,
     get_mane_transcripts,
+    get_protein_accession,
+    get_seqrepo,
     get_sequence,
     get_transcripts,
     get_uniprot_sequence,
 )
 from mavemap.schemas import (
     AlignmentResult,
-    ManeData,
+    ManeDescription,
     ScoreRow,
     ScoresetMetadata,
     TargetSequenceType,
     TargetType,
+    TranscriptDescription,
     TxSelectResult,
 )
 
@@ -37,7 +40,12 @@ class TxSelectError(Exception):
 async def _get_compatible_transcripts(
     metadata: ScoresetMetadata, align_result: AlignmentResult
 ) -> List[List[str]]:
-    """Acquire matching transcripts"""
+    """Acquire matching transcripts
+
+    :param metadata: metadata for scoreset
+    :param align_result: output of ``align()`` method
+    :return: List of list of compatible transcripts
+    """
     if align_result.chrom.startswith("chr"):
         aligned_chrom = align_result.chrom[3:]
     else:
@@ -70,69 +78,49 @@ def _reduce_compatible_transcripts(matching_transcripts: List[List[str]]) -> Lis
     return common_transcripts
 
 
-def _choose_best_transcript(mane_transcripts: List[ManeData], urn: str) -> ManeData:
-    """Choose best transcript (Select > Plus Clinical) given MANE status
-
-    Todo:
-    ----
-     * Handle case where it's empty (ie implement longest compatible logic)
+def _choose_best_mane_transcript(
+    mane_transcripts: List[ManeDescription],
+) -> Optional[ManeDescription]:
+    """Choose best transcript (Select > Plus Clinical) given MANE status. This was
+    originally a little longer but I think all we have to worry about is grabbing based
+    on MANE status.
 
     :param mane_transcripts: list of MANE transcript descriptions
-    :param urn: scoreset ID for error message
     :return: best transcript
     """
-    if len(mane_transcripts) == 2:
-        if mane_transcripts[0].transcript_priority == TranscriptPriority.MANE_SELECT:
-            return mane_transcripts[0]
-        else:
-            _logger.warning(
-                "Unexpected transcript priority return for %s: %s",
-                urn,
-                mane_transcripts,
-            )
-            breakpoint()  # TODO want to take a look at this when it comes up
-            return mane_transcripts[1]
-    elif len(mane_transcripts) == 1:
-        return mane_transcripts[0]
-    else:
-        # TODO pretty sure here's where we need to handle the stuff at the end of this
-        # code block fetching protein accessions
-        """
-        trans_lens = []
-        for i in range(len(isect)):
-            trans_lens.append(len(str(sr[isect[i]])))
-        loc = trans_lens.index(max(trans_lens))
-        nm = isect[loc]
+    if not mane_transcripts:
+        return None
+    for transcript in mane_transcripts:
+        if transcript.transcript_priority == TranscriptPriority.MANE_SELECT:
+            return transcript
+    for transcript in mane_transcripts:
+        if transcript.transcript_priority == TranscriptPriority.MANE_PLUS_CLINICAL:
+            return transcript
+    return None
 
-        testquery = f"SELECT pro_ac FROM uta_20210129.associated_accessions WHERE tx_ac = '{nm}'"
-        async def np():
-            out = await utadb.execute_query(testquery)
-            try:
-                return out[0]['pro_ac']
-            except:
-                return out
-        np = asyncio.run(np())
 
-        if np != []:
-            oseq = dat.at[j, 'target_sequence']
+async def _get_longest_compatible_transcript(
+    transcripts: List[str],
+) -> Optional[TranscriptDescription]:
+    """Get longest transcript from a list of compatible transcripts.
 
-            if len(set(str(oseq))) > 4:
-                stri = str(oseq)
-            else:
-                oseq = Seq(oseq)
-                stri = str(oseq.translate(table=1)).replace('*', '')
+    I think there's a chance of some discord between UTA and Seqrepo and we might get
+    KeyErrors here. If so, we should do a filter further up to drop any transcript
+    accession IDs not recognized by SeqRepo.
 
-            if str(sr[np]).find(stri) != -1:
-                full_match = True
-            else:
-                full_match = False
-            start = str(sr[np]).find(stri[:10])
-            mappings_dict[dat.at[j,'urn']] = [np, start, dat.at[j, 'urn'], full_match, nm, 'Longest Compatible']
-        """
-        _logger.error(
-            f"Unexpected number of MANE transcripts: {len(mane_transcripts)}, urn: {urn}"
-        )
-        raise NotImplementedError
+    :param transcripts:
+    :return:
+    """
+    transcripts.sort(key=lambda tx: len(get_seqrepo().sr[tx]))
+    nm = transcripts[-1]
+    np = await get_protein_accession(nm)
+    if not np:
+        return None
+    return TranscriptDescription(
+        refseq_nuc=nm,
+        refseq_prot=np,
+        transcript_priority=TranscriptPriority.LONGEST_COMPATIBLE_REMAINING,
+    )
 
 
 def _get_protein_sequence(target_sequence: str) -> str:
@@ -186,7 +174,11 @@ async def _select_protein_reference(
         tx_mode = None
     else:
         mane_transcripts = get_mane_transcripts(common_transcripts)
-        best_tx = _choose_best_transcript(mane_transcripts, metadata.urn)
+        best_tx = _choose_best_mane_transcript(mane_transcripts)
+        if not best_tx:
+            best_tx = await _get_longest_compatible_transcript(common_transcripts)
+        if not best_tx:
+            raise TxSelectError
         ref_sequence = get_sequence(best_tx.refseq_prot)
         nm_accession = best_tx.refseq_nuc
         np_accession = best_tx.refseq_prot
@@ -219,7 +211,8 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
         return 0  # TODO explain?
     protein_change_list = [rec.hgvs_pro.lstrip("p.") for rec in records]
 
-    aa_dict = {}  # TODO name?
+    # build table of parseable amino acids by reference location on target sequence
+    amino_acids_by_position = {}
     for protein_change in protein_change_list:
         if protein_change == "_sy" or protein_change == "_wt":
             raise ValueError
@@ -235,21 +228,28 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
                 loc = change[3:-1]
             else:
                 loc = change[3:-3]
-            if loc not in aa_dict:
+            if loc not in amino_acids_by_position:
                 loc = re.sub("[^0-9]", "", loc)
                 if loc:
-                    aa_dict[loc] = seq1(aa)
+                    amino_acids_by_position[loc] = seq1(aa)
 
     err_locs = []
     protein_sequence = Seq(metadata.target_sequence).translate(table="1")
     for i in range(len(protein_sequence)):
-        if str(i) in aa_dict and aa_dict[str(i)] != protein_sequence[i - 1]:
+        if (
+            str(i) in amino_acids_by_position
+            and amino_acids_by_position[str(i)] != protein_sequence[i - 1]
+        ):
             err_locs.append(i)
     if len(err_locs) == 0:
         return 0
-    aa_dict = {int(k): v for k, v in aa_dict.items()}
-    aa_dict = sorted(aa_dict.items())
-    aa_dict = dict(aa_dict)  # TODO what are we doing here
+
+    amino_acids_by_position = {int(k): v for k, v in amino_acids_by_position.items()}
+    amino_acids_by_position = sorted(amino_acids_by_position.items())
+    amino_acids_by_position = dict(
+        amino_acids_by_position
+    )  # TODO what are we doing here
+    breakpoint()
 
     """
     if len(err_locs) > 1:
@@ -302,16 +302,19 @@ async def select_transcript(
         click.echo(msg)
     _logger.info(msg)
 
+    if metadata.urn in {"urn:mavedb:00000053-a-1", "urn:mavedb:00000053-a-2"}:
+        # target sequence is missing codon
+        return None
+
     if metadata.target_gene_category == TargetType.PROTEIN_CODING:
-        output = await _select_protein_reference(metadata, align_result)
-        if output and metadata.target_sequence_type == TargetSequenceType.DNA:
-            if (
-                metadata.urn == "urn:mavedb:00000053-a-1"
-                or metadata.urn == "urn:mavedb:00000053-a-2"
-            ):
-                # target sequence is missing codon
-                return None
-            output.start = _offset_target_sequence(metadata, records)
+        transcript_reference = await _select_protein_reference(metadata, align_result)
+        if (
+            transcript_reference
+            and metadata.target_sequence_type == TargetSequenceType.DNA
+        ):
+            offset = _offset_target_sequence(metadata, records)
+            if offset:
+                transcript_reference.start = offset
     else:
         # can't provide transcripts for regulatory/noncoding scoresets
         return None
@@ -319,4 +322,4 @@ async def select_transcript(
     msg = "Reference selection complete."
     if not silent:
         click.echo(msg)
-    return output
+    return transcript_reference

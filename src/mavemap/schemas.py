@@ -85,7 +85,18 @@ class AlignmentResult(BaseModel):
     hit_subranges: List[SequenceRange]
 
 
-class ManeData(BaseModel):
+class TranscriptDescription(BaseModel):
+    """Structured transcript description.
+
+    Provides less information than the MANE results, but should convey what we need.
+    """
+
+    refseq_nuc: str
+    refseq_prot: str
+    transcript_priority: TranscriptPriority
+
+
+class ManeDescription(TranscriptDescription):
     """Structured MANE data retrieval result."""
 
     ncbi_gene_id: str
@@ -93,11 +104,8 @@ class ManeData(BaseModel):
     hgnc_gene_id: str
     symbol: str
     name: str
-    refseq_nuc: str
-    refseq_prot: str
     ensembl_nuc: str
     ensembl_prot: str
-    transcript_priority: TranscriptPriority
     grch38_chr: str
     chr_start: int
     chr_end: int

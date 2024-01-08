@@ -16,7 +16,7 @@ from gene.database import create_db
 from gene.query import QueryHandler
 from gene.schemas import SourceName
 
-from mavemap.schemas import GeneLocation, ManeData, ScoresetMetadata
+from mavemap.schemas import GeneLocation, ManeDescription, ScoresetMetadata
 
 _logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ async def get_transcripts(
     return [row["tx_ac"] for row in result]
 
 
-def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
+def get_mane_transcripts(transcripts: List[str]) -> List[ManeDescription]:
     """Get corresponding MANE data for transcripts.
 
     :param transcripts: candidate transcripts list
@@ -129,7 +129,7 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeData]:
     mane_data = []
     for result in mane_transcripts:
         mane_data.append(
-            ManeData(
+            ManeDescription(
                 ncbi_gene_id=result["#NCBI_GeneID"],
                 ensembl_gene_id=result["Ensembl_Gene"],
                 hgnc_gene_id=result["HGNC_ID"],
