@@ -12,7 +12,12 @@ from cool_seq_tool.schemas import Strand
 from gene.database.database import click
 
 from mavemap.lookup import get_chromosome_identifier, get_gene_location
-from mavemap.resources import get_mapping_tmp_dir, get_ref_genome_file
+from mavemap.resources import (
+    LOCAL_STORE_PATH,
+    get_cached_blat_output,
+    get_mapping_tmp_dir,
+    get_ref_genome_file,
+)
 from mavemap.schemas import (
     AlignmentResult,
     GeneLocation,
@@ -77,7 +82,10 @@ def _run_blat_command(command: str, args: Dict) -> subprocess.CompletedProcess:
 
 
 def _get_blat_output(
-    scoreset_metadata: ScoresetMetadata, query_file: Path, silent: bool
+    scoreset_metadata: ScoresetMetadata,
+    query_file: Path,
+    silent: bool,
+    use_cached: bool,
 ) -> QueryResult:
     """Run a BLAT query and returns a path to the output object.
 
@@ -91,38 +99,49 @@ def _get_blat_output(
     :param scoreset_metadata: object containing scoreset attributes
     :param query_file: Path to BLAT query file
     :param silent: suppress BLAT command output
+    :param use_cached: if True, don't rerun BLAT if output file already exists, and don't
+    save it to a temporary location. This is probably only useful during development.
     :return: BLAT query result
     :raise AlignmentError: if BLAT subprocess returns error code
     """
-    reference_genome_file = get_ref_genome_file(
-        silent=silent
-    )  # TODO hg38 by default--what about earlier builds?
-    out_file = (
-        get_mapping_tmp_dir() / f"blat_out_{scoreset_metadata.urn}_{uuid.uuid1()}.psl"
-    )
+    if use_cached:
+        out_file = get_cached_blat_output(scoreset_metadata.urn)
+    else:
+        out_file = None
+    if not use_cached or not out_file:
+        reference_genome_file = get_ref_genome_file(
+            silent=silent
+        )  # TODO hg38 by default--what about earlier builds?
+        if use_cached:
+            out_file = LOCAL_STORE_PATH / f"{scoreset_metadata.urn}_blat_output.psl"
+        else:
+            out_file = (
+                get_mapping_tmp_dir()
+                / f"blat_out_{scoreset_metadata.urn}_{uuid.uuid1()}.psl"
+            )
 
-    if scoreset_metadata.target_sequence_type == TargetSequenceType.PROTEIN:
-        target_commands = "-q=prot -t=dnax"
-    elif scoreset_metadata.target_sequence_type == TargetSequenceType.DNA:
-        target_commands = "-q=dnax -t=dnax"
-    else:
-        query_file.unlink()
-        out_file.unlink()
-        raise AlignmentError(
-            f"Unknown target sequence type: {scoreset_metadata.target_sequence_type} for scoreset {scoreset_metadata.urn}"
-        )
-    command = f"blat {reference_genome_file} {target_commands} -minScore=20 {query_file} {out_file}"
-    if silent:
-        kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.STDOUT}
-    else:
-        kwargs = {}
-    process = _run_blat_command(command, kwargs)
-    if process.returncode != 0:
-        query_file.unlink()
-        out_file.unlink()
-        raise AlignmentError(
-            f"BLAT process returned error code {process.returncode}: {command}"
-        )
+        if scoreset_metadata.target_sequence_type == TargetSequenceType.PROTEIN:
+            target_commands = "-q=prot -t=dnax"
+        elif scoreset_metadata.target_sequence_type == TargetSequenceType.DNA:
+            target_commands = "-q=dnax -t=dnax"
+        else:
+            query_file.unlink()
+            out_file.unlink()
+            raise AlignmentError(
+                f"Unknown target sequence type: {scoreset_metadata.target_sequence_type} for scoreset {scoreset_metadata.urn}"
+            )
+        command = f"blat {reference_genome_file} {target_commands} -minScore=20 {query_file} {out_file}"
+        if silent:
+            kwargs = {"stdout": subprocess.DEVNULL, "stderr": subprocess.STDOUT}
+        else:
+            kwargs = {}
+        process = _run_blat_command(command, kwargs)
+        if process.returncode != 0:
+            query_file.unlink()
+            out_file.unlink()
+            raise AlignmentError(
+                f"BLAT process returned error code {process.returncode}: {command}"
+            )
     # TODO
     # the notebooks handle errors here by trying different BLAT arg configurations --
     # investigate, refer to older code if it comes up
@@ -130,7 +149,8 @@ def _get_blat_output(
 
     # clean up
     query_file.unlink()
-    out_file.unlink()
+    if not use_cached:
+        out_file.unlink()
 
     return output
 
@@ -251,11 +271,16 @@ def _get_best_match(output: QueryResult, metadata: ScoresetMetadata) -> Alignmen
     return result
 
 
-def align(scoreset_metadata: ScoresetMetadata, silent: bool = True) -> AlignmentResult:
+def align(
+    scoreset_metadata: ScoresetMetadata, silent: bool = True, use_cached: bool = False
+) -> AlignmentResult:
     """Align target sequence to a reference genome.
 
     :param scoreset_metadata: object containing scoreset metadata
-    :param quiet: suppress BLAT process output if true
+    :param silent: suppress BLAT process output if true
+    :param use_cached: make use of permanent mapping storage for intermediary files rather
+        than rebuilding new output and storing in tmp directory. Mostly useful for
+        development/testing.
     :return: data wrapper containing alignment results
     """
     msg = f"Performing alignment for {scoreset_metadata.urn}..."
@@ -264,7 +289,7 @@ def align(scoreset_metadata: ScoresetMetadata, silent: bool = True) -> Alignment
     _logger.info(msg)
 
     query_file = next(_build_query_file(scoreset_metadata))
-    blat_output = _get_blat_output(scoreset_metadata, query_file, silent)
+    blat_output = _get_blat_output(scoreset_metadata, query_file, silent, use_cached)
     match = _get_best_match(blat_output, scoreset_metadata)
 
     msg = "Alignment complete."

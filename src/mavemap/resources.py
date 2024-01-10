@@ -1,10 +1,12 @@
-"""Manage static data resources.
+"""Manage local data resources.
 
 This module is responsible for handling requests for MaveDB data, such as scoresets
 or scoreset metadata. It should also instantiate any external resources needed for
-tasks like alignment.
+tasks like alignment. Finally, it also contains some methods and variables for
+intermediary data (e.g. BLAT query/output files).
 
-Much of this can/should be replaced by the ``mavetools`` library. (Or ``wags-tails``.)
+Much of this can/should be replaced by the ``mavetools`` library. (and/or
+``wags-tails``.)
 """
 import csv
 import json
@@ -29,6 +31,19 @@ LOCAL_STORE_PATH = Path(
 )
 if not LOCAL_STORE_PATH.exists():
     LOCAL_STORE_PATH.mkdir(exist_ok=True, parents=True)
+
+
+def get_cached_blat_output(urn: str) -> Optional[Path]:
+    """Return cached BLAT output if available. Mostly useful for development/testing.
+
+    :param urn: identifier for scoreset
+    :return: path to BLAT output if exists
+    """
+    out_file = LOCAL_STORE_PATH / f"{urn}_blat_output.psl"
+    if out_file.exists():
+        return out_file
+    else:
+        return None
 
 
 class ResourceAcquisitionError(Exception):
@@ -151,7 +166,7 @@ def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
     :return: Object containing salient metadata
     :raise ResourceAcquisitionError: if unable to acquire metadata
     """
-    metadata_file = LOCAL_STORE_PATH / f"{scoreset_urn.replace(':', '')}_metadata.json)"
+    metadata_file = LOCAL_STORE_PATH / f"{scoreset_urn}_metadata.json"
     if not metadata_file.exists():
         url = f"https://api.mavedb.org/api/v1/score-sets/{scoreset_urn}"
         r = requests.get(url)
@@ -206,7 +221,7 @@ def get_scoreset_records(scoreset_urn: str, silent: bool = True) -> List[ScoreRo
         changes and scores
     :raise ResourceAcquisitionError: if unable to fetch file
     """
-    scores_csv = LOCAL_STORE_PATH / f"{scoreset_urn.replace(':', ' ')}_scores.csv"
+    scores_csv = LOCAL_STORE_PATH / f"{scoreset_urn}_scores.csv"
     # TODO use smarter/more flexible caching methods
     if not scores_csv.exists():
         url = f"https://api.mavedb.org/api/v1/score-sets/{scoreset_urn}/scores"

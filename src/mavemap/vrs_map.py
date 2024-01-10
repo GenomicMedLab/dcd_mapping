@@ -269,15 +269,14 @@ def _map_regulatory_noncoding(
     metadata: ScoresetMetadata,
     records: List[ScoreRow],
     align_result: AlignmentResult,
-) -> Tuple[List[Allele], List[Allele]]:
+) -> List[Tuple[Allele, Allele]]:
     """Return VRS alleles representing pre- and post-mapped variation objects (?)
 
     :param metadata: metadata for URN
     :param records: list of MAVE experiment result rows
     :return: TODO
     """
-    var_ids_pre_map: List[Allele] = []
-    var_ids_post_map: List[Allele] = []
+    var_ids = []
     sequence_id = _get_sequence_id(metadata.target_sequence)
 
     for row in records:
@@ -289,7 +288,6 @@ def _map_regulatory_noncoding(
         if isinstance(pre_map_allele, Haplotype):
             breakpoint()  # TODO investigate
             raise NotImplementedError
-        var_ids_pre_map.append(pre_map_allele)
         post_map_allele = _get_haplotype_allele(
             row.hgvs_nt[2:],
             align_result.chrom,
@@ -301,9 +299,9 @@ def _map_regulatory_noncoding(
         if isinstance(post_map_allele, Haplotype):
             breakpoint()  # TODO investigate
             raise NotImplementedError
-        var_ids_post_map.append(post_map_allele)
+        var_ids.append((pre_map_allele, post_map_allele))
 
-    return var_ids_pre_map, var_ids_post_map
+    return var_ids
 
 
 def vrs_map(
@@ -312,7 +310,7 @@ def vrs_map(
     transcript: Optional[TxSelectResult],
     records: List[ScoreRow],
     silent: bool = True,
-) -> Tuple[Allele, Allele]:
+) -> List[Tuple[Allele, Allele]]:
     """Given a description of a MAVE scoreset and an aligned transcript, generate
     the corresponding VRS objects.
 
@@ -334,4 +332,5 @@ def vrs_map(
         result = _map_protein_coding(metadata, transcript, records)
     else:
         result = _map_regulatory_noncoding(metadata, records, align_result)
+    breakpoint()  # TODO tmp
     return result

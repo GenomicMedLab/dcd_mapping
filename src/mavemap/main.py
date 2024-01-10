@@ -28,13 +28,15 @@ async def map_scoreset(
     :return: something (TODO)
     """
     try:
-        alignment_result = align(metadata, silent)
+        alignment_result = align(metadata, silent, True)
     except AlignmentError:
         _logger.error(f"Alignment failed for scoreset {metadata.urn}")
         return None
 
     print("Alignment result:")  # TODO remove these print calls
     print(alignment_result)
+
+    breakpoint()
 
     try:
         transcript = await select_transcript(
