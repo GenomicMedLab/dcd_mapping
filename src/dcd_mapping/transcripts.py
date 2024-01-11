@@ -3,6 +3,8 @@
 Outstanding questions/confusion
 -------------------------------
 * ``urn:mavedb:00000097-n-1``: unable to find any matching transcripts
+* Lots of scoresets (2023-) giving index errors in offset calculation
+* Remove MANE sorting once upstream sorting is confirmed
 """
 import logging
 import re
