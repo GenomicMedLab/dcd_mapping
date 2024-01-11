@@ -25,6 +25,9 @@ from dcd_mapping.schemas import (
     VrsMappingResult,
 )
 
+__all__ = ["vrs_map"]
+
+
 _logger = logging.getLogger(__name__)
 
 

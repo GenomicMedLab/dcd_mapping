@@ -19,6 +19,24 @@ from gene.schemas import SourceName
 
 from dcd_mapping.schemas import GeneLocation, ManeDescription, ScoresetMetadata
 
+__all__ = [
+    "CoolSeqToolBuilder",
+    "get_seqrepo",
+    "GeneNormalizerBuilder",
+    "VrsTranslatorBuilder",
+    "get_protein_accession",
+    "get_transcripts",
+    "get_gene_symbol",
+    "get_gene_location",
+    "get_chromosome_identifier",
+    "get_ucsc_chromosome_name",
+    "get_chromosome_identifier_from_vrs_id",
+    "get_sequence",
+    "store_sequence",
+    "hgvs_to_vrs",
+    "get_mane_transcripts",
+    "get_uniprot_sequence",
+]
 _logger = logging.getLogger(__name__)
 
 # ---------------------------------- Global ---------------------------------- #

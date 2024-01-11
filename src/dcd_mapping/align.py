@@ -31,6 +31,8 @@ from dcd_mapping.schemas import (
     TargetSequenceType,
 )
 
+__all__ = ["align"]
+
 _logger = logging.getLogger(__name__)
 
 

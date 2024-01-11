@@ -23,6 +23,17 @@ from tqdm import tqdm
 
 from dcd_mapping.schemas import ReferenceGenome, ScoreRow, ScoresetMetadata, UniProtRef
 
+__all__ = [
+    "get_cached_blat_output",
+    "get_scoreset_urns",
+    "get_human_urns",
+    "get_raw_scoreset_metadata",
+    "get_scoreset_metadata",
+    "get_human_urns",
+    "get_ref_genome_file",
+    "get_mapping_tmp_dir",
+]
+
 _logger = logging.getLogger(__name__)
 
 

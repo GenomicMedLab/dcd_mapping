@@ -35,6 +35,8 @@ from dcd_mapping.schemas import (
     TxSelectResult,
 )
 
+__all__ = ["select_transcript"]
+
 _logger = logging.getLogger(__name__)
 
 
