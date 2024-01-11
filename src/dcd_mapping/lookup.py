@@ -419,6 +419,11 @@ def get_mane_transcripts(transcripts: List[str]) -> List[ManeDescription]:
         elif description.transcript_priority == TranscriptPriority.MANE_PLUS_CLINICAL:
             return 1
         else:  # should be impossible
+            _logger.warning(
+                "Unrecognized transcript priority value %s for transcript description of %s",
+                description.transcript_priority,
+                description.refseq_nuc,
+            )
             return 0
 
     mane_df = CoolSeqToolBuilder().mane_transcript_mappings.df
