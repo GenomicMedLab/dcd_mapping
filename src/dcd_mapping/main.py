@@ -1,4 +1,5 @@
 """Provide core MaveDB mapping methods."""
+import json
 import logging
 from typing import List
 
@@ -6,15 +7,34 @@ import click
 
 from dcd_mapping.align import AlignmentError, align
 from dcd_mapping.resources import (
+    LOCAL_STORE_PATH,
     ResourceAcquisitionError,
     get_scoreset_metadata,
     get_scoreset_records,
 )
-from dcd_mapping.schemas import ScoreRow, ScoresetMetadata
+from dcd_mapping.schemas import ScoreRow, ScoresetMetadata, VrsMappingResult
 from dcd_mapping.transcripts import TxSelectError, select_transcript
 from dcd_mapping.vrs_map import VrsMapError, vrs_map
 
 _logger = logging.getLogger(__name__)
+
+
+def _save_results(
+    metadata: ScoresetMetadata, mapping_results: VrsMappingResult
+) -> None:
+    """Save results to file.
+
+    Todo:
+    ----
+    * Embed in original metadata JSON
+    * Option to save as VRS 1.x
+
+    :param metadata: scoreset metadata
+    :param mapping results: mapped objects
+    """
+    outfile = LOCAL_STORE_PATH / f"{metadata.urn}_mapping_results.json"
+    with open(outfile, "w") as f:
+        json.dump(mapping_results.model_dump_json(indent=2), f)
 
 
 async def map_scoreset(
@@ -42,9 +62,13 @@ async def map_scoreset(
         return None
 
     try:
-        _ = vrs_map(metadata, transcript, records)
+        vrs_results = vrs_map(metadata, alignment_result, transcript, records)
     except VrsMapError:
         _logger.error(f"VRS mapping failed for scoreset {metadata.urn}")
+        return None
+
+    if vrs_results:
+        _save_results(metadata, vrs_results)
 
 
 async def map_scoreset_urn(urn: str, silent: bool = True) -> None:

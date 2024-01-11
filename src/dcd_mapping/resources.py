@@ -157,16 +157,16 @@ def _get_uniprot_ref(scoreset_json: Dict[str, Any]) -> Optional[UniProtRef]:
             )
 
 
-def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
-    """Acquire metadata for scoreset.
+def get_raw_scoreset_metadata(scoreset_urn: str) -> Dict:
+    """Get raw (original JSON) metadata for scoreset.
 
     Only hit the MaveDB API if unavailable locally. That means data must be refreshed
     manually (i.e. you'll need to delete a scoreset file yourself for this method to
     fetch a new one). This could be improved in future versions.
 
     :param scoreset_urn: URN for scoreset
-    :return: Object containing salient metadata
-    :raise ResourceAcquisitionError: if unable to acquire metadata
+    :return: Complete JSON response for object
+    :raise ResourceAcquisitionError: if HTTP request fails
     """
     metadata_file = LOCAL_STORE_PATH / f"{scoreset_urn}_metadata.json"
     if not metadata_file.exists():
@@ -183,6 +183,21 @@ def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
     else:
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
+    return metadata
+
+
+def get_scoreset_metadata(scoreset_urn: str) -> ScoresetMetadata:
+    """Acquire metadata for scoreset.
+
+    Only hit the MaveDB API if unavailable locally. That means data must be refreshed
+    manually (i.e. you'll need to delete a scoreset file yourself for this method to
+    fetch a new one). This could be improved in future versions.
+
+    :param scoreset_urn: URN for scoreset
+    :return: Object containing salient metadata
+    :raise ResourceAcquisitionError: if unable to acquire metadata
+    """
+    metadata = get_raw_scoreset_metadata(scoreset_urn)
     if not _metadata_response_is_human(metadata):
         raise ResourceAcquisitionError(
             f"Experiment for {scoreset_urn} contains no human targets"

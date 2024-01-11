@@ -1,6 +1,6 @@
 """Map transcripts to VRS objects."""
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import click
 from Bio.Seq import Seq
@@ -21,6 +21,8 @@ from dcd_mapping.schemas import (
     ScoresetMetadata,
     TargetType,
     TxSelectResult,
+    VrsMapping,
+    VrsMappingResult,
 )
 
 _logger = logging.getLogger(__name__)
@@ -269,19 +271,19 @@ def _map_regulatory_noncoding(
     metadata: ScoresetMetadata,
     records: List[ScoreRow],
     align_result: AlignmentResult,
-) -> List[Tuple[Allele, Allele]]:
+) -> VrsMappingResult:
     """Return VRS alleles representing pre- and post-mapped variation objects (?)
 
     :param metadata: metadata for URN
     :param records: list of MAVE experiment result rows
     :return: TODO
     """
-    var_ids = []
+    variations = VrsMappingResult(variations=[])
     sequence_id = _get_sequence_id(metadata.target_sequence)
 
     for row in records:
         if row.hgvs_nt == "_wt" or row.hgvs_nt == "_sy":
-            raise ValueError  # TODO unclear what's up here
+            raise ValueError  # old MAVE-HGVS syntax
         pre_map_allele = _get_haplotype_allele(
             row.hgvs_nt[2:], align_result.chrom, 0, sequence_id, AnnotationLayer.GENOMIC
         )  # TODO need query/hit ranges and strand for something
@@ -299,9 +301,11 @@ def _map_regulatory_noncoding(
         if isinstance(post_map_allele, Haplotype):
             breakpoint()  # TODO investigate
             raise NotImplementedError
-        var_ids.append((pre_map_allele, post_map_allele))
+        variations.variations.append(
+            VrsMapping(pre_mapping=pre_map_allele, mapped=post_map_allele)
+        )
 
-    return var_ids
+    return variations
 
 
 def vrs_map(
@@ -310,13 +314,13 @@ def vrs_map(
     transcript: Optional[TxSelectResult],
     records: List[ScoreRow],
     silent: bool = True,
-) -> List[Tuple[Allele, Allele]]:
+) -> Optional[VrsMappingResult]:
     """Given a description of a MAVE scoreset and an aligned transcript, generate
     the corresponding VRS objects.
 
     Todo:
     ----
-    * Store objects in SeqRepo
+    * Workaround for storing objects in SeqRepo
 
     :param metadata: salient MAVE scoreset metadata
     :param transcript: output of transcript selection process
@@ -329,8 +333,8 @@ def vrs_map(
         click.echo(msg)
     _logger.info(msg)
     if metadata.target_gene_category == TargetType.PROTEIN_CODING and transcript:
-        result = _map_protein_coding(metadata, transcript, records)
+        _ = _map_protein_coding(metadata, transcript, records)
+        result = None
     else:
         result = _map_regulatory_noncoding(metadata, records, align_result)
-    breakpoint()  # TODO tmp
     return result

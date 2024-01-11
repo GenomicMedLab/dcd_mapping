@@ -1,8 +1,9 @@
 """Provide class definitions for commonly-used information objects."""
 from enum import StrEnum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from cool_seq_tool.schemas import Strand, TranscriptPriority
+from ga4gh.vrs._internal.models import Allele, Haplotype
 from pydantic import BaseModel, StrictBool, StrictInt
 
 
@@ -121,3 +122,16 @@ class TxSelectResult(BaseModel):
     is_full_match: StrictBool
     transcript_mode: Optional[TranscriptPriority] = None
     sequence: str
+
+
+class VrsMapping(BaseModel):
+    """Define pre-post mapping pair structure for VRS-structured variations."""
+
+    pre_mapping: Union[Allele, Haplotype]
+    mapped: Union[Allele, Haplotype]
+
+
+class VrsMappingResult(BaseModel):
+    """Define response object from VRS mappings method."""
+
+    variations: List[VrsMapping]
