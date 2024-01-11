@@ -4,7 +4,7 @@ import logging
 
 import click
 
-from mavemap.main import map_scoreset_urn
+from dcd_mapping.main import map_scoreset_urn
 
 _logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def cli(urn: str, debug: bool) -> None:
     :param debug: if True, enable debug logging
     """  # noqa: D301
     logging.basicConfig(
-        filename="mavemap.log",
+        filename="dcd-mapping.log",
         format="%(asctime)s %(levelname)s:%(message)s",
         level=logging.INFO,
         force=True,

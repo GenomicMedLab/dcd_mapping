@@ -4,15 +4,15 @@ from typing import List
 
 import click
 
-from mavemap.align import AlignmentError, align
-from mavemap.resources import (
+from dcd_mapping.align import AlignmentError, align
+from dcd_mapping.resources import (
     ResourceAcquisitionError,
     get_scoreset_metadata,
     get_scoreset_records,
 )
-from mavemap.schemas import ScoreRow, ScoresetMetadata
-from mavemap.transcripts import TxSelectError, select_transcript
-from mavemap.vrs_map import VrsMapError, vrs_map
+from dcd_mapping.schemas import ScoreRow, ScoresetMetadata
+from dcd_mapping.transcripts import TxSelectError, select_transcript
+from dcd_mapping.vrs_map import VrsMapError, vrs_map
 
 _logger = logging.getLogger(__name__)
 
@@ -33,11 +33,6 @@ async def map_scoreset(
         _logger.error(f"Alignment failed for scoreset {metadata.urn}")
         return None
 
-    print("Alignment result:")  # TODO remove these print calls
-    print(alignment_result)
-
-    breakpoint()
-
     try:
         transcript = await select_transcript(
             metadata, records, alignment_result, silent
@@ -45,9 +40,6 @@ async def map_scoreset(
     except TxSelectError:
         _logger.error(f"Transcript selection failed for scoreset {metadata.urn}")
         return None
-
-    print("Transcript:")
-    print(transcript)
 
     try:
         _ = vrs_map(metadata, transcript, records)

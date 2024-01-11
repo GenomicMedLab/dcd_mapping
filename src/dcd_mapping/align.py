@@ -1,4 +1,9 @@
-"""Align MaveDB target sequences to a human reference genome."""
+"""Align MaveDB target sequences to a human reference genome.
+
+Outstanding items/encountered errors
+------------------------------------
+
+"""
 import logging
 import subprocess
 import uuid
@@ -11,14 +16,14 @@ from Bio.SearchIO._model import Hit, QueryResult
 from cool_seq_tool.schemas import Strand
 from gene.database.database import click
 
-from mavemap.lookup import get_chromosome_identifier, get_gene_location
-from mavemap.resources import (
+from dcd_mapping.lookup import get_chromosome_identifier, get_gene_location
+from dcd_mapping.resources import (
     LOCAL_STORE_PATH,
     get_cached_blat_output,
     get_mapping_tmp_dir,
     get_ref_genome_file,
 )
-from mavemap.schemas import (
+from dcd_mapping.schemas import (
     AlignmentResult,
     GeneLocation,
     ScoresetMetadata,
@@ -145,6 +150,8 @@ def _get_blat_output(
     # TODO
     # the notebooks handle errors here by trying different BLAT arg configurations --
     # investigate, refer to older code if it comes up
+    # ideally we should be forming correct queries up front instead of running
+    # failed alignment attempts
     output = read_blat(out_file.absolute(), "blat-psl")
 
     # clean up

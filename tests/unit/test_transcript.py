@@ -3,9 +3,9 @@ from typing import Dict
 
 import pytest
 
-from mavemap.resources import get_scoreset_records
-from mavemap.schemas import AlignmentResult, ScoresetMetadata, TxSelectResult
-from mavemap.transcripts import select_transcript
+from dcd_mapping.resources import get_scoreset_records
+from dcd_mapping.schemas import AlignmentResult, ScoresetMetadata, TxSelectResult
+from dcd_mapping.transcripts import select_transcript
 
 
 @pytest.mark.asyncio(scope="module")

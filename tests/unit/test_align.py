@@ -8,7 +8,7 @@ Todo:
 import pytest
 from cool_seq_tool.schemas import Strand
 
-from mavemap.align import align
+from dcd_mapping.align import align
 
 
 def test_align_src_catalytic_domain(scoreset_metadata_fixture):

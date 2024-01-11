@@ -14,8 +14,8 @@ from ga4gh.vrs._internal.models import (
 )
 from ga4gh.vrs.normalize import normalize
 
-from mavemap.lookup import hgvs_to_vrs
-from mavemap.schemas import (
+from dcd_mapping.lookup import hgvs_to_vrs
+from dcd_mapping.schemas import (
     AlignmentResult,
     ScoreRow,
     ScoresetMetadata,

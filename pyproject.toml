@@ -1,6 +1,6 @@
 [project]
-name = "mavemap"
-description = "Map MaveDB scoresets to reference sequences"
+name = "dcd-mapping"
+description = "Map MaveDB scoresets to VRS objects"
 authors = [
     {name = "Alex Handler Wagner", email = "Alex.Wagner@nationwidechildrens.org"},
     {name = "Jeremy Arbesfeld", email = "todo@todo.com"},
@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dcd-map = "mavemap.cli:cli"
+dcd-map = "dcd_mapping.cli:cli"
 
 [project.optional-dependencies]
 tests = [

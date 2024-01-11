@@ -1,4 +1,9 @@
-"""Select best reference sequence."""
+"""Select best reference sequence.
+
+Outstanding questions/confusion
+-------------------------------
+* ``urn:mavedb:00000097-n-1``: unable to find any matching transcripts
+"""
 import logging
 import re
 from typing import List, Optional
@@ -9,7 +14,7 @@ from Bio.SeqUtils import seq1
 from cool_seq_tool.schemas import TranscriptPriority
 from gene.database.database import click
 
-from mavemap.lookup import (
+from dcd_mapping.lookup import (
     get_chromosome_identifier,
     get_gene_symbol,
     get_mane_transcripts,
@@ -19,7 +24,7 @@ from mavemap.lookup import (
     get_transcripts,
     get_uniprot_sequence,
 )
-from mavemap.schemas import (
+from dcd_mapping.schemas import (
     AlignmentResult,
     ManeDescription,
     ScoreRow,
@@ -217,7 +222,7 @@ def _offset_target_sequence(metadata: ScoresetMetadata, records: List[ScoreRow])
     amino_acids_by_position = {}
     for protein_change in protein_change_list:
         if protein_change == "_sy" or protein_change == "_wt":
-            raise ValueError
+            continue
         if ";" in protein_change:
             protein_changes = protein_change[1:-1].split(";")
         else:

@@ -21,13 +21,15 @@ import requests
 from pydantic import ValidationError
 from tqdm import tqdm
 
-from mavemap.schemas import ReferenceGenome, ScoreRow, ScoresetMetadata, UniProtRef
+from dcd_mapping.schemas import ReferenceGenome, ScoreRow, ScoresetMetadata, UniProtRef
 
 _logger = logging.getLogger(__name__)
 
 
 LOCAL_STORE_PATH = Path(
-    os.environ.get("MAVEDB_STORAGE_DIR", Path.home() / ".local" / "share" / "mavemap")
+    os.environ.get(
+        "MAVEDB_STORAGE_DIR", Path.home() / ".local" / "share" / "dcd-mapping"
+    )
 )
 if not LOCAL_STORE_PATH.exists():
     LOCAL_STORE_PATH.mkdir(exist_ok=True, parents=True)

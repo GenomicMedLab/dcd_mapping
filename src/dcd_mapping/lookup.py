@@ -17,7 +17,7 @@ from gene.database import create_db
 from gene.query import QueryHandler
 from gene.schemas import SourceName
 
-from mavemap.schemas import GeneLocation, ManeDescription, ScoresetMetadata
+from dcd_mapping.schemas import GeneLocation, ManeDescription, ScoresetMetadata
 
 _logger = logging.getLogger(__name__)
 

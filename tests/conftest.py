@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from mavemap.schemas import AlignmentResult, ScoresetMetadata, TxSelectResult
+from dcd_mapping.schemas import AlignmentResult, ScoresetMetadata, TxSelectResult
 
 
 @pytest.fixture(scope="module")
