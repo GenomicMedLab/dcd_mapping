@@ -1,9 +1,4 @@
-"""Align MaveDB target sequences to a human reference genome.
-
-Outstanding items/encountered errors
-------------------------------------
-
-"""
+"""Align MaveDB target sequences to a human reference genome."""
 import logging
 import subprocess
 import uuid
