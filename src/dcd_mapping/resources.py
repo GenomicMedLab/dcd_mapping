@@ -28,6 +28,7 @@ __all__ = [
     "get_scoreset_urns",
     "get_human_urns",
     "get_raw_scoreset_metadata",
+    "get_scoreset_records",
     "get_scoreset_metadata",
     "get_human_urns",
     "get_ref_genome_file",

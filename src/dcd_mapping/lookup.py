@@ -12,7 +12,7 @@ from cool_seq_tool.handlers.seqrepo_access import SeqRepoAccess
 from cool_seq_tool.schemas import TranscriptPriority
 from ga4gh.core._internal.models import Extension, Gene
 from ga4gh.vrs._internal.models import Allele, SequenceLocation
-from ga4gh.vrs.extras.translator import Translator
+from ga4gh.vrs.extras.translator import AlleleTranslator
 from gene.database import create_db
 from gene.query import QueryHandler
 from gene.schemas import SourceName
@@ -79,15 +79,14 @@ class GeneNormalizerBuilder:
 class VrsTranslatorBuilder:
     """Singleton constructor for VRS-Python translator instance."""
 
-    # TODO this looks.... very wrong?
-    def __new__(cls) -> Translator:
+    def __new__(cls) -> AlleleTranslator:
         """Provide VRS-Python translator. Construct if unavailable.
 
         :return: singleton instances of Translator
         """
         if not hasattr(cls, "instance"):
             cst = CoolSeqToolBuilder()
-            cls.instance = Translator(cst.seqrepo_access, normalize=False)
+            cls.instance = AlleleTranslator(cst.seqrepo_access, normalize=False)
         return cls.instance
 
 

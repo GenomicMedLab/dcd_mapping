@@ -125,13 +125,19 @@ class TxSelectResult(BaseModel):
 
 
 class VrsMapping(BaseModel):
-    """Define pre-post mapping pair structure for VRS-structured variations."""
+    """Define pre-post mapping pair structure for VRS-structured variations.
+
+    Probably need to add score and accession to make json writing easier
+    """
 
     pre_mapping: Union[Allele, Haplotype]
     mapped: Union[Allele, Haplotype]
 
 
 class VrsMappingResult(BaseModel):
-    """Define response object from VRS mappings method."""
+    """Define response object from VRS mappings method.
+
+    Might not be necessary (should just be list of VrsMappings?)
+    """
 
     variations: List[VrsMapping]
