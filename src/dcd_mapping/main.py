@@ -28,7 +28,7 @@ def _save_results(
     Todo:
     ----
     * add ``mapped_reference_sequence`` and ``computed_referense_sequence`` properties
-    * Embed in original metadata JSON
+    * Embed within original metadata JSON
     * Option to save as VRS 1.x
 
     :param metadata: scoreset metadata
@@ -37,7 +37,7 @@ def _save_results(
     """
     outfile = LOCAL_STORE_PATH / f"{metadata.urn}_mapping_results.json"
     with open(outfile, "w") as f:
-        json.dump(mapping_results.model_dump_json(indent=2), f)
+        json.dump(mapping_results.model_dump(), f, indent=2)
     return outfile
 
 
