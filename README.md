@@ -45,3 +45,5 @@ Add pre-commit hooks
 ```
 pre-commit install
 ```
+
+When debugging, use flags `-c` and `-d` to enable caching of BLAT alignment and debug logging, respectively.
