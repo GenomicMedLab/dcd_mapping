@@ -18,7 +18,7 @@ Transcript selection:
 * Tests will need some extensive mocking (or cassettes?) for reliance on UTA and other external dependencies
 
 VRS mapping:
-* In general, this stuff is still pretty rough
-* Finish the SeqRepo storage workaround
+* In general, this stuff is still pretty rough. Tests aren't passing yet.
+* Finish double-checking the SeqRepo storage workaround
 * A fair amount of small questions about conditions written to handle specific scoresets/edge cases
-* More testing. Can be ready for CI by mocking the SequenceStore class (or using SeqRepoRESTDataProxy and cassettes).
+* More testing. Can be ready for CI by manually patching the SequenceStore class (or using SeqRepoRESTDataProxy and cassettes).

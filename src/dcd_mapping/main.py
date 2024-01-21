@@ -37,7 +37,7 @@ def _save_results(
     """
     outfile = LOCAL_STORE_PATH / f"{metadata.urn}_mapping_results.json"
     with open(outfile, "w") as f:
-        json.dump(mapping_results.model_dump(), f, indent=2)
+        json.dump(mapping_results.model_dump(exclude_none=True), f, indent=2)
     return outfile
 
 
