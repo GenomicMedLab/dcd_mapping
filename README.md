@@ -18,6 +18,12 @@ Output is saved in the format `<URN>_mapping_results.json` in the directory spec
 
 Following installation instructions for [CoolSeqTool](https://coolseqtool.readthedocs.io/en/0.4.0-dev1/install.html) and [Gene Normalizer](https://gene-normalizer.readthedocs.io/en/latest/install.html) should take care of the external data dependencies.
 
+Note that Gene Normalizer's `pg` dependency group must be installed to make use of the PostgreSQL-based backend:
+
+```shell
+python3 -m pip install 'gene-normalizer[pg]'
+```
+
 ## Development
 
 Clone the repo
