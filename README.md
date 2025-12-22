@@ -1,5 +1,5 @@
 # dcd-mapping
-Note: This repo is no longer actively maintained and is being archived. The development of this pipeline is now being maintained by the MaveDB dev team.
+Note: This repo is no longer actively maintained and is being archived. The development of this pipeline is now being maintained by the MaveDB dev team at this [link](https://github.com/VariantEffect/dcd_mapping2).
 
 ## Results
 
